@@ -2,38 +2,41 @@ import { Gift, ChevronRight, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-
-const schemes = [
-  {
-    id: 1,
-    name: 'PM किसान सम्मान निधि',
-    benefit: '₹6,000/साल',
-    eligibility: 'आपके लिए उपलब्ध',
-    matchScore: 95,
-  },
-  {
-    id: 2,
-    name: 'फसल बीमा योजना',
-    benefit: 'फसल सुरक्षा',
-    eligibility: 'रबी सीजन के लिए',
-    matchScore: 88,
-  },
-];
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export const SchemeSuggestions = () => {
+  const { language, t } = useLanguage();
+
+  const schemes = [
+    {
+      id: 1,
+      name: language === 'hi' ? 'PM किसान सम्मान निधि' : 'PM Kisan Samman Nidhi',
+      benefit: language === 'hi' ? '₹6,000/साल' : '₹6,000/year',
+      eligibility: language === 'hi' ? 'आपके लिए उपलब्ध' : 'Available for you',
+      matchScore: 95,
+    },
+    {
+      id: 2,
+      name: language === 'hi' ? 'फसल बीमा योजना' : 'Crop Insurance Scheme',
+      benefit: language === 'hi' ? 'फसल सुरक्षा' : 'Crop Protection',
+      eligibility: language === 'hi' ? 'रबी सीजन के लिए' : 'For Rabi season',
+      matchScore: 88,
+    },
+  ];
+
   return (
     <Card className="border-none shadow-md">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Gift className="w-5 h-5 text-primary" />
-            आपके लिए योजनाएं
+            {t('schemesForYou')}
           </CardTitle>
           <Link 
             to="/yojana" 
             className="text-sm text-primary flex items-center gap-1 hover:underline"
           >
-            सभी देखें
+            {language === 'hi' ? 'सभी देखें' : 'View All'}
             <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
