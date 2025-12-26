@@ -757,9 +757,15 @@ export default function GraminSaathiOS() {
     const pathname = window.location.pathname.slice(1);
     const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'translator', 'community'];
     
-    // Handle legacy 'home' route - redirect to 'dashboard'
+    // Handle legacy 'home' route - show landing page
     if (pathname === 'home') {
       setCurrentView('landing');
+      return;
+    }
+    
+    // Handle login/auth route - show auth view
+    if (pathname === 'login' || pathname === 'auth') {
+      setShowAuth(true);
       return;
     }
     
