@@ -51,9 +51,11 @@ import {
   Shield,
   Smartphone,
   AlertTriangle,
+  AlertCircle,
   CheckCircle,
   XCircle,
   Check,
+  Info,
   Filter,
   Download,
   Search,
@@ -572,24 +574,64 @@ const speakText = (text, lang = 'en') => {
   return true;
 };
 
-const startVoiceRecognition = (onResult, lang = 'en') => {
-  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+// Speech-to-Text (STT) with Android compatibility
+const startVoiceRecognition = (onResult, onError, lang = 'en') => {
+  // Check for browser support
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  
+  if (!SpeechRecognition) {
+    if (onError) onError('Speech recognition not supported');
     return null;
   }
   
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const recognition = new SpeechRecognition();
-  recognition.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
-  recognition.continuous = false;
-  recognition.interimResults = false;
-  
-  recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript;
-    onResult(transcript);
-  };
-  
-  recognition.start();
-  return recognition;
+  try {
+    const recognition = new SpeechRecognition();
+    
+    // Set language
+    recognition.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
+    recognition.continuous = false;
+    recognition.interimResults = true; // Show intermediate results
+    recognition.maxAlternatives = 1;
+    
+    recognition.onresult = (event) => {
+      // Get the most recent result
+      const lastResult = event.results[event.results.length - 1];
+      if (lastResult.isFinal) {
+        const transcript = lastResult[0].transcript;
+        if (transcript && transcript.trim()) {
+          onResult(transcript.trim());
+        }
+      }
+    };
+    
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      if (onError) {
+        if (event.error === 'not-allowed') {
+          onError('Microphone access denied. Please allow microphone permission.');
+        } else if (event.error === 'no-speech') {
+          onError('No speech detected. Please try again.');
+        } else if (event.error === 'network') {
+          onError('Network error. Check your connection.');
+        } else {
+          onError('Voice input failed. Try again.');
+        }
+      }
+    };
+    
+    recognition.onend = () => {
+      // Recognition ended (can be used for UI updates)
+    };
+    
+    // Start recognition
+    recognition.start();
+    return recognition;
+    
+  } catch (err) {
+    console.error('STT initialization error:', err);
+    if (onError) onError('Could not start voice input');
+    return null;
+  }
 };
 
 // Attach to window for global access
@@ -679,8 +721,13 @@ const generateDummyTransactions = (lang = 'en') => {
 export default function GraminSaathiOS() {
   // Global State
   const [user, setUser] = useState(null);
-  // Theme: 'blue' (default), 'dark', 'light'
-  const [theme, setTheme] = useState(() => localStorage.getItem('app_theme') || 'blue');
+  // Theme: 'dark' (default/ocean), 'light', 'ocean'
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('app_theme');
+    // Map old 'blue' to 'ocean' for backwards compatibility
+    if (saved === 'blue') return 'ocean';
+    return saved || 'ocean';
+  });
   const [lang, setLang] = useState('en');
   const [fontSize, setFontSize] = useState('normal'); // normal, large, xlarge
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -691,21 +738,36 @@ export default function GraminSaathiOS() {
   const [routeLoading, setRouteLoading] = useState(false); // Route transition progress bar
   const [loadProgress, setLoadProgress] = useState(0); // Progress bar percentage
   
+  // Toast notification state
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  
+  // Show toast notification
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+  };
+  
   // Apply theme to body
   useEffect(() => {
-    document.body.classList.remove('theme-blue', 'theme-dark', 'theme-light');
-    if (theme !== 'blue') {
-      document.body.classList.add(`theme-${theme}`);
+    document.body.classList.remove('theme-blue', 'theme-dark', 'theme-light', 'theme-ocean');
+    if (theme === 'light') {
+      document.body.classList.add('theme-light');
+    } else if (theme === 'dark') {
+      document.body.classList.add('theme-dark');
     }
+    // 'ocean' is the default, no class needed (uses blue CSS variables)
     localStorage.setItem('app_theme', theme);
   }, [theme]);
   
-  // Theme toggle function (cycles: blue -> light -> dark -> blue)
+  // Theme toggle function (cycles: ocean -> light -> dark -> ocean)
   const cycleTheme = () => {
     setTheme(prev => {
-      if (prev === 'blue') return 'light';
-      if (prev === 'light') return 'dark';
-      return 'blue';
+      let next;
+      if (prev === 'ocean') next = 'light';
+      else if (prev === 'light') next = 'dark';
+      else next = 'ocean';
+      showToast(`Theme: ${next.charAt(0).toUpperCase() + next.slice(1)}`, 'info');
+      return next;
     });
   };
   
@@ -1066,6 +1128,7 @@ export default function GraminSaathiOS() {
             setShowAuth(false);
             setCurrentView('dashboard');
             window.history.replaceState(null, '', '/dashboard');
+            showToast(lang === 'en' ? 'Welcome back!' : 'स्वागत है!', 'success');
           }} 
           t={t} 
           lang={lang} 
@@ -1090,6 +1153,22 @@ export default function GraminSaathiOS() {
           aria-valuemax={100}
           aria-label="Page loading"
         />
+      )}
+      
+      {/* Toast Notification */}
+      {toast.show && (
+        <div 
+          className={`fixed top-4 left-1/2 -translate-x-1/2 z-[9999] px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-in slide-in-from-top duration-300 ${
+            toast.type === 'success' ? 'bg-green-500 text-white' :
+            toast.type === 'error' ? 'bg-red-500 text-white' :
+            'bg-[var(--bg-card)] text-[var(--text-main)] border border-[var(--border)]'
+          }`}
+        >
+          {toast.type === 'success' && <CheckCircle size={18} />}
+          {toast.type === 'error' && <AlertCircle size={18} />}
+          {toast.type === 'info' && <Info size={18} />}
+          <span className="text-sm font-medium">{toast.message}</span>
+        </div>
       )}
       
       {/* Skip to main content link for accessibility */}
@@ -1165,19 +1244,12 @@ export default function GraminSaathiOS() {
                  </button>
                  <button 
                    onClick={cycleTheme} 
-                   className="p-2 rounded-xl bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--bg-card-hover)] transition-colors flex items-center justify-center border border-[var(--border)] min-w-[40px]"
-                   title={theme === 'blue' ? 'Ocean Theme' : theme === 'light' ? 'Light Theme' : 'Dark Theme'}
+                   className="flex-1 p-2 rounded-xl bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--bg-card-hover)] transition-colors flex items-center justify-center gap-2 border border-[var(--border)]"
+                   title={theme === 'dark' ? 'Dark Theme' : theme === 'light' ? 'Light Theme' : 'Ocean Theme'}
                    aria-label={`Current theme: ${theme}. Click to change theme.`}
                  >
-                   {theme === 'blue' ? <Droplet size={18} /> : theme === 'light' ? <Sun size={18} /> : <Moon size={18} />}
-                 </button>
-                 <button 
-                   onClick={toggleSunlightMode} 
-                   className="p-2 rounded-xl bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--bg-card-hover)] transition-colors flex items-center justify-center border border-[var(--border)]"
-                   title="Sunlight Mode (High Contrast)"
-                   aria-label={sunlightMode ? 'Disable sunlight mode' : 'Enable sunlight mode for outdoor visibility'}
-                 >
-                   {sunlightMode ? '☀️' : '🔆'}
+                   {theme === 'dark' ? <Moon size={16} /> : theme === 'light' ? <Sun size={16} /> : <Droplet size={16} />}
+                   <span className="text-xs font-medium">{theme === 'dark' ? 'Dark' : theme === 'light' ? 'Light' : 'Ocean'}</span>
                  </button>
               </div>
             </div>
@@ -2780,24 +2852,34 @@ ${lang === 'en' ? 'Transactions' : 'लेनदेन'}: ${filteredTransactions
     setVoiceField(field);
     
     if (!window.startVoiceRecognition) {
-      alert(lang === 'en' ? 'Voice not supported in this browser' : 'इस ब्राउज़र में आवाज समर्थित नहीं है');
+      showToast(lang === 'en' ? 'Voice not supported' : 'आवाज समर्थित नहीं', 'error');
       setIsListening(false);
       return;
     }
     
-    window.startVoiceRecognition((result) => {
-      if (field === 'amount') {
-        // Extract numbers from speech
-        const numbers = result.match(/\d+/g);
-        if (numbers) {
-          setAmount(numbers.join(''));
+    window.startVoiceRecognition(
+      // On result
+      (result) => {
+        if (field === 'amount') {
+          // Extract numbers from speech
+          const numbers = result.match(/\d+/g);
+          if (numbers) {
+            setAmount(numbers.join(''));
+          }
+        } else if (field === 'desc') {
+          setDesc(result);
         }
-      } else if (field === 'desc') {
-        setDesc(result);
-      }
-      setIsListening(false);
-      setVoiceField(null);
-    }, lang);
+        setIsListening(false);
+        setVoiceField(null);
+      },
+      // On error
+      (error) => {
+        showToast(error, 'error');
+        setIsListening(false);
+        setVoiceField(null);
+      },
+      lang
+    );
   };
 
   return (
@@ -3623,10 +3705,10 @@ Bad (NEVER do this): **Bold text** or ### Headers or long paragraphs.`;
     setLoading(false);
   };
 
-  // ✨ TTS using Web Speech API (Native Browser Support) with Multi-language Support
+  // ✨ TTS using Web Speech API with Android compatibility fixes
   const playTTS = (text, index) => {
     if (!('speechSynthesis' in window)) {
-      alert(lang === 'en' ? 'Text-to-speech not supported in your browser.' : 'आपके ब्राउज़र में TTS समर्थित नहीं है।');
+      showToast(lang === 'en' ? 'Text-to-speech not supported' : 'TTS समर्थित नहीं है', 'error');
       return;
     }
     
@@ -3640,8 +3722,15 @@ Bad (NEVER do this): **Bold text** or ### Headers or long paragraphs.`;
       .replace(/###/g, '')
       .replace(/##/g, '')
       .replace(/#/g, '')
+      .replace(/•/g, '. ')
       .replace(/\n+/g, '. ')
+      .replace(/\s+/g, ' ')
       .trim();
+    
+    if (!cleanText) {
+      showToast(lang === 'en' ? 'Nothing to speak' : 'बोलने के लिए कुछ नहीं', 'info');
+      return;
+    }
     
     setAudioPlaying(index);
     
@@ -3650,14 +3739,6 @@ Bad (NEVER do this): **Bold text** or ### Headers or long paragraphs.`;
     // Map language codes to speech synthesis languages
     const langMap = {
       'hi': 'hi-IN',
-      'pa': 'pa-IN',
-      'te': 'te-IN',
-      'ta': 'ta-IN',
-      'kn': 'kn-IN',
-      'ml': 'ml-IN',
-      'gu': 'gu-IN',
-      'mr': 'mr-IN',
-      'bn': 'bn-IN',
       'en': 'en-IN'
     };
     
@@ -3666,24 +3747,75 @@ Bad (NEVER do this): **Bold text** or ### Headers or long paragraphs.`;
     utterance.pitch = 1;
     utterance.volume = 1;
     
-    // Load voices and try to find a matching one
+    utterance.onend = () => {
+      setAudioPlaying(null);
+      // Clear the keep-alive interval
+      if (window.ttsKeepAlive) {
+        clearInterval(window.ttsKeepAlive);
+        window.ttsKeepAlive = null;
+      }
+    };
+    
+    utterance.onerror = (e) => {
+      console.error('TTS Error:', e);
+      setAudioPlaying(null);
+      if (window.ttsKeepAlive) {
+        clearInterval(window.ttsKeepAlive);
+        window.ttsKeepAlive = null;
+      }
+      // Don't show error for 'interrupted' which is normal when canceling
+      if (e.error !== 'interrupted') {
+        showToast(lang === 'en' ? 'Speech failed. Try again.' : 'बोलने में विफल', 'error');
+      }
+    };
+    
+    // Function to speak with voice selection
     const speakWithVoice = () => {
       const voices = window.speechSynthesis.getVoices();
       const targetLang = langMap[lang] || 'en-IN';
-      const preferredVoice = voices.find(v => v.lang === targetLang) || 
-                             voices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
-      if (preferredVoice) {
-        utterance.voice = preferredVoice;
+      
+      // Try to find a matching voice
+      let voice = voices.find(v => v.lang === targetLang);
+      if (!voice) voice = voices.find(v => v.lang.startsWith(lang));
+      if (!voice) voice = voices.find(v => v.lang.includes(lang));
+      // Fallback to any English voice for Hindi if not available
+      if (!voice && lang === 'hi') voice = voices.find(v => v.lang.startsWith('en'));
+      if (!voice && voices.length > 0) voice = voices[0];
+      
+      if (voice) {
+        utterance.voice = voice;
       }
+      
+      // Speak
       window.speechSynthesis.speak(utterance);
+      
+      // Android Chrome workaround: Chrome on Android pauses speech after ~15 seconds
+      // We need to resume it periodically
+      if (/Android/i.test(navigator.userAgent)) {
+        window.ttsKeepAlive = setInterval(() => {
+          if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+            window.speechSynthesis.pause();
+            window.speechSynthesis.resume();
+          } else if (!window.speechSynthesis.speaking) {
+            clearInterval(window.ttsKeepAlive);
+            window.ttsKeepAlive = null;
+          }
+        }, 10000);
+      }
     };
     
-    utterance.onend = () => setAudioPlaying(null);
-    utterance.onerror = () => setAudioPlaying(null);
-    
-    // Chrome requires voices to be loaded
-    if (window.speechSynthesis.getVoices().length === 0) {
-      window.speechSynthesis.onvoiceschanged = speakWithVoice;
+    // Wait for voices to load
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length === 0) {
+      // Voices not loaded yet, wait for them
+      const voiceWait = setTimeout(() => {
+        speakWithVoice(); // Speak anyway after timeout
+      }, 500);
+      
+      window.speechSynthesis.onvoiceschanged = () => {
+        clearTimeout(voiceWait);
+        speakWithVoice();
+      };
     } else {
       speakWithVoice();
     }
@@ -4422,56 +4554,108 @@ function TranslatorView({ lang, user, db, appId }) {
     setOutputText(inputText);
   };
 
-  // Voice Input (Speech-to-Text)
+  // Voice Input (Speech-to-Text) with Android compatibility
   const startVoiceInput = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      alert(lang === 'en' ? 'Voice input not supported. Try Chrome/Edge.' : 'वॉयस इनपुट सपोर्ट नहीं है। Chrome/Edge ट्राई करें।');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      showToast(lang === 'en' ? 'Voice not supported. Try Chrome.' : 'वॉयस सपोर्ट नहीं। Chrome ट्राई करें।', 'error');
       return;
     }
     
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    
-    const selectedLang = languages.find(l => l.code === fromLang);
-    recognition.lang = selectedLang?.voice || 'en-US';
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    try {
+      const recognition = new SpeechRecognition();
+      
+      const selectedLang = languages.find(l => l.code === fromLang);
+      recognition.lang = selectedLang?.voice || 'en-US';
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
 
-    setIsListening(true);
+      setIsListening(true);
 
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setInputText(transcript);
+      recognition.onresult = (event) => {
+        const lastResult = event.results[event.results.length - 1];
+        if (lastResult.isFinal) {
+          const transcript = lastResult[0].transcript;
+          if (transcript && transcript.trim()) {
+            setInputText(transcript.trim());
+          }
+        }
+        setIsListening(false);
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech error:', event.error);
+        setIsListening(false);
+        if (event.error === 'not-allowed') {
+          showToast(lang === 'en' ? 'Microphone access denied' : 'माइक्रोफोन एक्सेस अस्वीकृत', 'error');
+        } else if (event.error !== 'aborted') {
+          showToast(lang === 'en' ? 'Voice input failed' : 'वॉयस इनपुट विफल', 'error');
+        }
+      };
+
+      recognition.onend = () => setIsListening(false);
+      recognition.start();
+    } catch (err) {
+      console.error('STT error:', err);
       setIsListening(false);
-    };
-
-    recognition.onerror = (event) => {
-      console.error('Speech error:', event.error);
-      setIsListening(false);
-    };
-
-    recognition.onend = () => setIsListening(false);
-    recognition.start();
+      showToast(lang === 'en' ? 'Could not start voice input' : 'वॉयस इनपुट शुरू नहीं हो सका', 'error');
+    }
   };
 
-  // Text-to-Speech
+  // Text-to-Speech with Android compatibility
   const speakText = (text, langCode) => {
     if (!('speechSynthesis' in window)) {
-      alert(lang === 'en' ? 'Text-to-speech not supported.' : 'टेक्स्ट-टू-स्पीच सपोर्ट नहीं है।');
+      showToast(lang === 'en' ? 'TTS not supported' : 'TTS सपोर्ट नहीं है', 'error');
       return;
     }
     
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
+    
+    const cleanText = text.replace(/\s+/g, ' ').trim();
+    if (!cleanText) return;
+    
+    const utterance = new SpeechSynthesisUtterance(cleanText);
     const selectedLang = languages.find(l => l.code === langCode);
     utterance.lang = selectedLang?.voice || 'en-US';
     utterance.rate = 0.9;
     
     setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
+    
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      if (window.ttsKeepAlive) {
+        clearInterval(window.ttsKeepAlive);
+        window.ttsKeepAlive = null;
+      }
+    };
+    
+    utterance.onerror = (e) => {
+      setIsSpeaking(false);
+      if (window.ttsKeepAlive) {
+        clearInterval(window.ttsKeepAlive);
+        window.ttsKeepAlive = null;
+      }
+      if (e.error !== 'interrupted') {
+        showToast(lang === 'en' ? 'Speech failed' : 'बोलने में विफल', 'error');
+      }
+    };
     
     window.speechSynthesis.speak(utterance);
+    
+    // Android Chrome workaround
+    if (/Android/i.test(navigator.userAgent)) {
+      window.ttsKeepAlive = setInterval(() => {
+        if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+          window.speechSynthesis.pause();
+          window.speechSynthesis.resume();
+        } else if (!window.speechSynthesis.speaking) {
+          clearInterval(window.ttsKeepAlive);
+          window.ttsKeepAlive = null;
+        }
+      }, 10000);
+    }
   };
 
   // Offline dictionary for common terms
