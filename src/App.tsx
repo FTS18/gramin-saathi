@@ -18,7 +18,7 @@ import {
   Languages, 
   Save, 
   Wifi, 
-  Wifi, 
+  WifiOff,
   MapPin, 
   ShieldCheck, 
   Tractor, 
@@ -60,6 +60,7 @@ import {
   Type,
   Store,
   Cloud,
+  Droplet,
   Droplets,
   Wind,
   Gauge,
@@ -126,36 +127,159 @@ const themeStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 
   :root {
-    /* Ocean Blue Palette */
-    --bg-main: #011627;       /* Ink Black */
-    --bg-glass: #0a1e2e;      /* Solid dark blue-gray */
-    --bg-card: #0d2137;       /* Solid card background */
+    /* Ocean Blue Palette (Default) */
+    --bg-main: #011627;
+    --bg-glass: #0a1e2e;
+    --bg-card: #0d2137;
     --bg-card-hover: rgba(65, 234, 212, 0.1);
-    --bg-input: #132d42;      /* Solid input background */
+    --bg-input: #132d42;
     
-    --primary: #41ead4;       /* Turquoise */
+    --primary: #41ead4;
     --primary-glow: rgba(65, 234, 212, 0.4);
-    --secondary: #0ea5e9;     /* Sky Blue */
-    --accent: #3b82f6;        /* Blue 500 */
+    --secondary: #0ea5e9;
+    --accent: #3b82f6;
     
-    --text-main: #fdfffc;     /* Porcelain */
-    --text-muted: #94a3b8;    /* Slate-400 (Keeping for readability) */
+    --text-main: #fdfffc;
+    --text-muted: #94a3b8;
     --border: rgba(65, 234, 212, 0.2);
     
     --success: #22c55e;
-    --danger: #ff0022;        /* Racing Red for Danger */
+    --danger: #ff0022;
     --white: #ffffff;
 
-    --radius-sm: 0.25rem;     /* Sharper corners for Cyberpunk */
+    --radius-sm: 0.25rem;
     --radius-md: 0.5rem;
     --radius-lg: 1rem;
     
     --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
     --shadow-neon: 0 0 10px rgba(65, 234, 212, 0.3), 0 0 20px rgba(65, 234, 212, 0.2);
+    --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --backdrop: blur(20px) saturate(150%);
   }
 
-  /* No Light Mode - Enforced Cyberpunk */
+  /* Light Theme */
+  body.theme-light {
+    --bg-main: #f8fafc;
+    --bg-glass: #ffffff;
+    --bg-card: #ffffff;
+    --bg-card-hover: rgba(59, 130, 246, 0.1);
+    --bg-input: #f1f5f9;
+    
+    --primary: #3b82f6;
+    --primary-glow: rgba(59, 130, 246, 0.4);
+    --secondary: #0ea5e9;
+    --accent: #6366f1;
+    
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    
+    --success: #22c55e;
+    --danger: #ef4444;
+    
+    --shadow-glass: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-neon: 0 4px 14px 0 rgba(59, 130, 246, 0.2);
+  }
+  
+  body.theme-light {
+    background-color: var(--bg-main);
+    background-image: 
+      radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.08), transparent 25%),
+      radial-gradient(circle at 85% 30%, rgba(14, 165, 233, 0.08), transparent 25%);
+  }
+  
+  body.theme-light select, 
+  body.theme-light input[type="text"], 
+  body.theme-light input[type="email"], 
+  body.theme-light input[type="password"], 
+  body.theme-light textarea {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+  
+  body.theme-light select option {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+  }
+  
+  body.theme-light ::-webkit-scrollbar-track { background: #f1f5f9; }
+  body.theme-light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
+  body.theme-light ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+  /* Dark Theme (OLED Black) */
+  body.theme-dark {
+    --bg-main: #000000;
+    --bg-glass: #0a0a0a;
+    --bg-card: #121212;
+    --bg-card-hover: rgba(168, 85, 247, 0.15);
+    --bg-input: #1a1a1a;
+    
+    --primary: #a855f7;
+    --primary-glow: rgba(168, 85, 247, 0.4);
+    --secondary: #ec4899;
+    --accent: #f43f5e;
+    
+    --text-main: #fafafa;
+    --text-muted: #a1a1aa;
+    --border: rgba(168, 85, 247, 0.25);
+    
+    --success: #22c55e;
+    --danger: #ef4444;
+    
+    --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+    --shadow-neon: 0 0 15px rgba(168, 85, 247, 0.4), 0 0 30px rgba(168, 85, 247, 0.2);
+  }
+  
+  body.theme-dark {
+    background-color: #000000;
+    background-image: 
+      radial-gradient(circle at 15% 50%, rgba(168, 85, 247, 0.1), transparent 25%),
+      radial-gradient(circle at 85% 30%, rgba(236, 72, 153, 0.1), transparent 25%);
+  }
+
+  /* Route Progress Bar */
+  .route-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    z-index: 9999;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 10px var(--primary-glow);
+  }
+
+  /* Skip to main content (Accessibility) */
+  .skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: var(--primary);
+    color: black;
+    padding: 8px 16px;
+    z-index: 10000;
+    font-weight: 600;
+    transition: top 0.3s;
+  }
+  .skip-link:focus {
+    top: 0;
+  }
+
+  /* Focus visible for accessibility */
+  *:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  
+  /* Reduced motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 
   body {
     background-color: var(--bg-main);
@@ -546,7 +670,8 @@ const generateDummyTransactions = (lang = 'en') => {
 export default function GraminSaathiOS() {
   // Global State
   const [user, setUser] = useState(null);
-  // Theme enforced to 'ink-black'
+  // Theme: 'blue' (default), 'dark', 'light'
+  const [theme, setTheme] = useState(() => localStorage.getItem('app_theme') || 'blue');
   const [lang, setLang] = useState('en');
   const [fontSize, setFontSize] = useState('normal'); // normal, large, xlarge
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -554,13 +679,33 @@ export default function GraminSaathiOS() {
   const [voiceEnabled, setVoiceEnabled] = useState('speechSynthesis' in window);
   const [sidebarOpen, setSidebarOpen] = useState(false); // For mobile sidebar toggle
   const [showAuth, setShowAuth] = useState(false); // For showing auth view from landing page
+  const [routeLoading, setRouteLoading] = useState(false); // Route transition progress bar
+  const [loadProgress, setLoadProgress] = useState(0); // Progress bar percentage
+  
+  // Apply theme to body
+  useEffect(() => {
+    document.body.classList.remove('theme-blue', 'theme-dark', 'theme-light');
+    if (theme !== 'blue') {
+      document.body.classList.add(`theme-${theme}`);
+    }
+    localStorage.setItem('app_theme', theme);
+  }, [theme]);
+  
+  // Theme toggle function (cycles: blue -> light -> dark -> blue)
+  const cycleTheme = () => {
+    setTheme(prev => {
+      if (prev === 'blue') return 'light';
+      if (prev === 'light') return 'dark';
+      return 'blue';
+    });
+  };
   
   // Get initial view from URL pathname
   const getInitialView = () => {
     const pathname = window.location.pathname.slice(1); // Remove leading /
     // Support both 'home' (legacy) and 'dashboard' routes
     if (pathname === 'home') return 'dashboard';
-    const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'community'];
+    const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'translator', 'community'];
     if (validViews.includes(pathname)) return pathname;
     // If user is logged in and on root, go to dashboard, otherwise onboarding
     return 'onboarding';
@@ -569,10 +714,37 @@ export default function GraminSaathiOS() {
   // Navigation State
   const [currentView, setCurrentView] = useState(getInitialView()); // onboarding, home, khata, saathi, yojana, seekho, profile
   
-  // Helper to change view and close mobile sidebar
+  // Helper to change view and close mobile sidebar with progress bar
   const handleViewChange = (view) => {
-    setCurrentView(view);
-    setSidebarOpen(false);
+    if (view === currentView) return;
+    
+    // Show progress bar animation
+    setRouteLoading(true);
+    setLoadProgress(0);
+    
+    // Animate progress bar
+    const progressInterval = setInterval(() => {
+      setLoadProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + Math.random() * 30;
+      });
+    }, 50);
+    
+    // After short delay, complete transition
+    setTimeout(() => {
+      setCurrentView(view);
+      setSidebarOpen(false);
+      setLoadProgress(100);
+      
+      // Hide progress bar after animation completes
+      setTimeout(() => {
+        setRouteLoading(false);
+        setLoadProgress(0);
+      }, 200);
+    }, 150);
   };
   
   // Data State
@@ -583,7 +755,7 @@ export default function GraminSaathiOS() {
   // Initialize route on mount to handle page refresh
   useEffect(() => {
     const pathname = window.location.pathname.slice(1);
-    const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'community'];
+    const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'translator', 'community'];
     
     // Handle legacy 'home' route - redirect to 'dashboard'
     if (pathname === 'home') {
@@ -599,7 +771,7 @@ export default function GraminSaathiOS() {
       // Root path - will be set based on login state
       setCurrentView(user ? 'dashboard' : 'landing');
     }
-  }, []);
+  }, [user]);
 
   // Update URL when view changes using History API
   useEffect(() => {
@@ -619,7 +791,7 @@ export default function GraminSaathiOS() {
         setCurrentView('dashboard');
         return;
       }
-      const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'community'];
+      const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'translator', 'community'];
       if (validViews.includes(pathname)) {
         setCurrentView(pathname);
       } else if (pathname === '') {
@@ -843,6 +1015,24 @@ export default function GraminSaathiOS() {
     <div className={`flex h-screen w-screen overflow-hidden transition-colors duration-500 ${fontSizeClass}`}>
       <style>{themeStyles}</style>
       
+      {/* Route Progress Bar */}
+      {routeLoading && (
+        <div 
+          className="route-progress" 
+          style={{ width: `${loadProgress}%` }}
+          role="progressbar"
+          aria-valuenow={loadProgress}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Page loading"
+        />
+      )}
+      
+      {/* Skip to main content link for accessibility */}
+      <a href="#main-content" className="skip-link">
+        {lang === 'en' ? 'Skip to main content' : 'मुख्य सामग्री पर जाएं'}
+      </a>
+      
       {currentView === 'onboarding' ? (
          <OnboardingView 
            user={user} 
@@ -856,7 +1046,7 @@ export default function GraminSaathiOS() {
                setCurrentView('dashboard');
                return;
              }
-             const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'community'];
+             const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'translator', 'community'];
              setCurrentView(validViews.includes(pathname) ? pathname : 'dashboard');
            }}
            t={t}
@@ -887,7 +1077,7 @@ export default function GraminSaathiOS() {
               </h1>
             </div>
             
-            <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
+            <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-2" role="navigation" aria-label={lang === 'en' ? 'Main navigation' : 'मुख्य नेविगेशन'}>
               <NavItem active={currentView === 'dashboard'} onClick={() => handleViewChange('dashboard')} icon={Home} label={t('nav_home')} />
               <NavItem active={currentView === 'khata'} onClick={() => handleViewChange('khata')} icon={Wallet} label={t('nav_khata')} />
               <NavItem active={currentView === 'saathi'} onClick={() => handleViewChange('saathi')} icon={Sprout} label={t('nav_saathi')} />
@@ -903,22 +1093,31 @@ export default function GraminSaathiOS() {
             <div className="p-4 border-t border-[var(--border)] space-y-3 bg-black/10 backdrop-blur-md">
               <IdentityMiniCard profile={profile} onClick={() => handleViewChange('profile')} t={t} />
               <div className="flex gap-2">
-                 <button onClick={toggleLang} className="flex-1 p-2 rounded-xl bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--bg-card-hover)] transition-colors flex justify-center font-bold border border-[var(--border)]">
+                 <button onClick={toggleLang} className="flex-1 p-2 rounded-xl bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--bg-card-hover)] transition-colors flex justify-center font-bold border border-[var(--border)]" aria-label={lang === 'en' ? 'Switch to Hindi' : 'Switch to English'}>
                    {lang === 'en' ? 'HI' : 'EN'}
+                 </button>
+                 <button 
+                   onClick={cycleTheme} 
+                   className="p-2 rounded-xl bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--bg-card-hover)] transition-colors flex items-center justify-center border border-[var(--border)] min-w-[40px]"
+                   title={theme === 'blue' ? 'Ocean Theme' : theme === 'light' ? 'Light Theme' : 'Dark Theme'}
+                   aria-label={`Current theme: ${theme}. Click to change theme.`}
+                 >
+                   {theme === 'blue' ? <Droplet size={18} /> : theme === 'light' ? <Sun size={18} /> : <Moon size={18} />}
                  </button>
                  <button 
                    onClick={toggleSunlightMode} 
                    className="p-2 rounded-xl bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--bg-card-hover)] transition-colors flex items-center justify-center border border-[var(--border)]"
                    title="Sunlight Mode (High Contrast)"
+                   aria-label={sunlightMode ? 'Disable sunlight mode' : 'Enable sunlight mode for outdoor visibility'}
                  >
-                   {sunlightMode ? '☀️' : '🌙'}
+                   {sunlightMode ? '☀️' : '🔆'}
                  </button>
               </div>
             </div>
           </aside>
 
           {/* Main Content Area */}
-          <main className="flex-1 w-screen md:w-auto h-full overflow-hidden flex flex-col relative">
+          <main id="main-content" className="flex-1 w-screen md:w-auto h-full overflow-hidden flex flex-col relative" role="main" aria-label={lang === 'en' ? 'Main content' : 'मुख्य सामग्री'}>
             
             {/* Mobile Header (Glass) */}
             <header className="md:hidden h-16 glass rounded-none flex items-center justify-between px-4 z-10 shrink-0">
@@ -3529,7 +3728,7 @@ function SaathiView({ user, profile, db, appId, t, lang }) {
           {messages.map((m, i) => (
             <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
                {m.image && (
-                 <img src={m.image} alt="Upload" className="w-32 h-32 md:w-48 md:h-48 object-cover rounded-xl md:rounded-2xl mb-2 border border-[var(--border)] shadow-md" />
+                 <img src={m.image} alt="Upload" loading="lazy" className="w-32 h-32 md:w-48 md:h-48 object-cover rounded-xl md:rounded-2xl mb-2 border border-[var(--border)] shadow-md" />
                )}
                
                <div className={`max-w-[88%] md:max-w-[70%] p-3 md:p-5 rounded-xl md:rounded-2xl text-xs md:text-sm leading-relaxed relative shadow-sm ${
@@ -5217,6 +5416,7 @@ MSP दरें PM-KISAN ऐप पर देखें या 1800-180-1551 प
                     <img 
                       src={post.image} 
                       alt={post.title}
+                      loading="lazy"
                       className="w-full h-96 object-cover rounded-xl"
                     />
                     <button
@@ -5553,6 +5753,7 @@ MSP दरें PM-KISAN ऐप पर देखें या 1800-180-1551 प
                         <img 
                           src={post.image} 
                           alt={post.title}
+                          loading="lazy"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       </div>
