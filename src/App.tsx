@@ -1044,7 +1044,16 @@ export default function GraminSaathiOS() {
     return (
       <>
         <style>{themeStyles}</style>
-        <AuthView onLogin={() => {}} t={t} lang={lang} toggleLang={toggleLang} />
+        <AuthView 
+          onLogin={() => {
+            setShowAuth(false);
+            setCurrentView('dashboard');
+            window.history.replaceState(null, '', '/dashboard');
+          }} 
+          t={t} 
+          lang={lang} 
+          toggleLang={toggleLang} 
+        />
       </>
     );
   }
