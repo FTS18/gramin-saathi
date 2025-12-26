@@ -68,7 +68,8 @@ import {
   Calculator,
   CalendarDays,
   BarChart3,
-  PlayCircle
+  PlayCircle,
+  Users
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -103,6 +104,12 @@ import {
   getDocFromCache,
   limit
 } from 'firebase/firestore';
+import { 
+  getVertexAI, 
+  getGenerativeModel,
+  HarmBlockThreshold,
+  HarmCategory
+} from '@firebase/vertexai';
 
 // --- Mocks for Environment Variables ---
 // (Removed as we now use real config)
@@ -249,6 +256,7 @@ const themeStyles = `
 
 import { TRANSLATIONS } from './lib/translations';
 import { handleAuthError, mockUser, mockProfile } from './lib/mockFirebase';
+import LandingPage from './components/LandingPage';
 
 /**
  * ==========================================================================================
@@ -280,6 +288,24 @@ enableIndexedDbPersistence(db).catch((err) => {
 });
 
 const appId = 'gramin-saathi';
+
+// ==================== VERTEX AI SETUP ====================
+const vertexAI = getVertexAI(app, { location: 'us-central1' });
+const translationModel = getGenerativeModel(vertexAI, {
+  model: 'gemini-2.0-flash-lite-001',
+  generationConfig: {
+    temperature: 0,
+    topK: 1,
+    candidateCount: 1,
+    maxOutputTokens: 1024,
+  },
+  safetySettings: [
+    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+  ],
+});
 
 // ==================== GEMINI API QUOTA MANAGEMENT ====================
 const API_QUOTA_KEY = 'gemini_api_quota';
@@ -503,13 +529,16 @@ export default function GraminSaathiOS() {
   const [sunlightMode, setSunlightMode] = useState(localStorage.getItem('sunlight_mode') === 'true');
   const [voiceEnabled, setVoiceEnabled] = useState('speechSynthesis' in window);
   const [sidebarOpen, setSidebarOpen] = useState(false); // For mobile sidebar toggle
+  const [showAuth, setShowAuth] = useState(false); // For showing auth view from landing page
   
   // Get initial view from URL pathname
   const getInitialView = () => {
     const pathname = window.location.pathname.slice(1); // Remove leading /
-    const validViews = ['home', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'community'];
+    // Support both 'home' (legacy) and 'dashboard' routes
+    if (pathname === 'home') return 'dashboard';
+    const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'community'];
     if (validViews.includes(pathname)) return pathname;
-    // If user is logged in and on root, go to home, otherwise onboarding
+    // If user is logged in and on root, go to dashboard, otherwise onboarding
     return 'onboarding';
   };
   
@@ -529,8 +558,10 @@ export default function GraminSaathiOS() {
 
   // Update URL when view changes using History API
   useEffect(() => {
-    if (currentView !== 'onboarding') {
+    if (currentView !== 'onboarding' && currentView !== 'landing') {
       window.history.pushState(null, '', `/${currentView}`);
+    } else if (currentView === 'landing') {
+      window.history.pushState(null, '', `/`);
     }
   }, [currentView]);
   
@@ -538,17 +569,22 @@ export default function GraminSaathiOS() {
   useEffect(() => {
     const handlePopState = () => {
       const pathname = window.location.pathname.slice(1);
-      const validViews = ['home', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'community'];
+      // Support both 'home' (legacy) and 'dashboard' routes
+      if (pathname === 'home') {
+        setCurrentView('dashboard');
+        return;
+      }
+      const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'community'];
       if (validViews.includes(pathname)) {
         setCurrentView(pathname);
       } else if (pathname === '') {
-        // Root path - decide based on user state
-        setCurrentView('onboarding');
+        // Root path - show landing if not logged in
+        setCurrentView(user ? 'dashboard' : 'landing');
       }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [user]);
   
   // Sunlight mode effect
   useEffect(() => {
@@ -731,27 +767,52 @@ export default function GraminSaathiOS() {
       <style>{themeStyles}</style>
       <div className="flex items-center justify-center h-screen bg-[var(--bg-main)] text-[var(--primary)]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-current"></div>
-      </div>
+    </div>
     </>
   );
+
+  // Show Landing Page or Auth View for non-logged-in users (full width, no constraints)
+  if (!user && !showAuth) {
+    return (
+      <>
+        <style>{themeStyles}</style>
+        <LandingPage 
+          onGetStarted={() => setShowAuth(true)} 
+          lang={lang} 
+          toggleLang={toggleLang} 
+        />
+      </>
+    );
+  }
+
+  if (!user && showAuth) {
+    return (
+      <>
+        <style>{themeStyles}</style>
+        <AuthView onLogin={() => {}} t={t} lang={lang} toggleLang={toggleLang} />
+      </>
+    );
+  }
 
   return (
     <div className={`flex h-screen w-screen overflow-hidden transition-colors duration-500 ${fontSizeClass}`}>
       <style>{themeStyles}</style>
       
-      {!user ? (
-        <AuthView onLogin={() => {}} t={t} lang={lang} toggleLang={toggleLang} />
-      ) : currentView === 'onboarding' ? (
+      {currentView === 'onboarding' ? (
          <OnboardingView 
            user={user} 
            db={db} 
            appId={appId} 
            onComplete={() => {
              loadProfile(user.uid);
-             // Go to current URL route or home if on root
+             // Go to current URL route or dashboard if on root
              const pathname = window.location.pathname.slice(1);
-             const validViews = ['home', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'community'];
-             setCurrentView(validViews.includes(pathname) ? pathname : 'home');
+             if (pathname === 'home') {
+               setCurrentView('dashboard');
+               return;
+             }
+             const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'community'];
+             setCurrentView(validViews.includes(pathname) ? pathname : 'dashboard');
            }}
            t={t}
            lang={lang}
@@ -782,7 +843,7 @@ export default function GraminSaathiOS() {
             </div>
             
             <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
-              <NavItem active={currentView === 'home'} onClick={() => handleViewChange('home')} icon={Home} label={t('nav_home')} />
+              <NavItem active={currentView === 'dashboard'} onClick={() => handleViewChange('dashboard')} icon={Home} label={t('nav_home')} />
               <NavItem active={currentView === 'khata'} onClick={() => handleViewChange('khata')} icon={Wallet} label={t('nav_khata')} />
               <NavItem active={currentView === 'saathi'} onClick={() => handleViewChange('saathi')} icon={Sprout} label={t('nav_saathi')} />
               <NavItem active={currentView === 'mandi'} onClick={() => handleViewChange('mandi')} icon={Store} label={lang === 'en' ? 'Mandi' : 'मंडी'} />
@@ -834,8 +895,8 @@ export default function GraminSaathiOS() {
             </header>
 
             {/* Scrollable Content */}
-            <div className={`flex-1 overflow-x-hidden p-4 md:p-6 md:pt-8 ${currentView === 'saathi' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
-               {currentView === 'home' && <HomeView user={user} profile={profile} db={db} appId={appId} t={t} lang={lang} setView={handleViewChange} />}
+            <div className={`flex-1 overflow-x-hidden p-4 md:p-6 md:pt-8 ${currentView === 'saathi' ? 'overflow-auto' : 'overflow-y-auto'}`}>
+               {currentView === 'dashboard' && <HomeView user={user} profile={profile} db={db} appId={appId} t={t} lang={lang} setView={handleViewChange} />}
                {currentView === 'khata' && <KhataView user={user} db={db} appId={appId} t={t} lang={lang} />}
                {currentView === 'saathi' && <SaathiView user={user} profile={profile} db={db} appId={appId} t={t} lang={lang} />}
                {currentView === 'mandi' && <MandiView lang={lang} />}
@@ -1849,323 +1910,317 @@ function HomeView({ user, profile, db, appId, t, lang, setView }) {
   const range = maxBalance - minBalance || 1;
   
   return (
-    <div className="w-full md:max-w-7xl md:mx-auto animate-in fade-in duration-700 space-y-0">
-      <div className="bento-grid">
+    <div className="w-full max-w-6xl mx-auto space-y-4 pb-20">
+      
+      {/* Top Section - Combined on Mobile, Grid on Desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         
-        {/* 1. Welcome Profile Card with Stats */}
-        <BentoCard colSpan={2} className="relative bg-gradient-to-br from-[var(--bg-card)] via-[var(--bg-glass)] to-[var(--primary)]/5 border border-[var(--border)] !p-3 md:!p-4">
-           <div className="absolute top-0 right-0 opacity-10">
-              <img src="/favicon.svg" alt="" className="w-20 h-20 md:hidden" />
-              <img src="/favicon.svg" alt="" className="w-36 h-36 hidden md:block" />
-           </div>
-           <div className="relative z-10">
-             <div className="flex items-center justify-between mb-2 md:mb-4">
-               <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-[var(--success)]/10 border border-[var(--success)]/20 text-[var(--success)] text-[10px] md:text-xs font-bold">
-                 <span className="relative flex h-1.5 w-1.5">
-                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--success)] opacity-75"></span>
-                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[var(--success)]"></span>
-                 </span>
-                 {t('online_mode')}
-               </div>
-               <div className="text-right">
-                 <p className="text-[10px] text-[var(--text-muted)] mb-0.5">{lang === 'en' ? 'This Month' : 'इस महीने'}</p>
-                 <div className="flex items-center gap-2">
-                   <div className="flex items-center gap-0.5">
-                     <TrendingUp size={12} className="text-[var(--success)]" />
-                     <span className="text-[10px] md:text-xs font-bold text-[var(--success)]">₹{totalIncome.toLocaleString('en-IN')}</span>
-                   </div>
-                   <div className="flex items-center gap-0.5">
-                     <TrendingDown size={12} className="text-red-500" />
-                     <span className="text-[10px] md:text-xs font-bold text-red-500">₹{totalExpense.toLocaleString('en-IN')}</span>
-                   </div>
-                 </div>
-               </div>
-             </div>
-             <h2 className="text-xl md:text-3xl font-bold text-[var(--text-main)] tracking-tight mb-1">
-               {t('welcome')}, <span className="bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] bg-clip-text text-transparent">{profile?.name} Ji</span>
-             </h2>
-             <p className="text-[var(--text-muted)] flex items-center gap-1.5 text-xs">
-               <MapPin size={12} className="text-[var(--primary)]" />
-               {profile?.village} • {profile?.crop}
-             </p>
-           </div>
-        </BentoCard>
-
-        {/* 2. Current Balance Card (Prominent) */}
-        <BentoCard className="relative bg-gradient-to-br from-[var(--primary)] via-[var(--primary)] to-[var(--secondary)] text-white border-none shadow-xl md:shadow-2xl overflow-hidden !p-3 md:!p-4">
-           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDUiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-30" />
-           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16" />
-           <div className="relative h-full flex flex-col justify-between">
-             <div className="flex items-start justify-between">
-               <div className="p-2 bg-white/20 rounded-xl md:rounded-2xl backdrop-blur-md shadow-lg">
-                 <Wallet size={18} className="text-white" />
-               </div>
-               <div className="flex flex-col items-end gap-0.5">
-                 <span className="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm">{lang === 'en' ? 'LIVE' : 'लाइव'}</span>
-                 <span className="text-[9px] text-white/70">{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span>
-               </div>
-             </div>
-             <div className="mt-2">
-               <p className="text-white/70 text-[10px] font-semibold uppercase tracking-wide">{t('balance')}</p>
-               <div className="flex items-baseline gap-1">
-                 <span className="text-2xl md:text-4xl font-bold tracking-tight">₹{loading ? '...' : Math.abs(balance).toLocaleString('en-IN')}</span>
-                 {balance < 0 && <span className="text-xs text-red-200 font-semibold">DR</span>}
-               </div>
-               <div className="flex items-center gap-1.5 mt-1">
-                 <div className="flex-1 h-1 bg-white/20 rounded-full overflow-hidden">
-                   <div 
-                     className="h-full bg-white/60 rounded-full transition-all duration-500" 
-                     style={{ width: `${Math.min((totalIncome / (totalIncome + totalExpense)) * 100, 100)}%` }}
-                   />
-                 </div>
-                 <span className="text-[9px] text-white/60 font-medium">{totalIncome > 0 ? Math.round((totalIncome / (totalIncome + totalExpense)) * 100) : 0}%</span>
-               </div>
-             </div>
-           </div>
-        </BentoCard>
-
-        {/* 3. Balance History Chart (Large) */}
-        <BentoCard colSpan={2} rowSpan={2} className="bg-[var(--bg-card)] border border-[var(--border)] group hover:border-[var(--primary)]/30 !p-3 md:!p-4">
-           <div className="flex items-center justify-between mb-3 md:mb-6">
-             <div>
-               <h3 className="text-sm md:text-lg font-bold text-[var(--text-main)] mb-0.5">{lang === 'en' ? 'Balance History' : 'बैलेंस इतिहास'}</h3>
-               <p className="text-[10px] md:text-xs text-[var(--text-muted)]">{lang === 'en' ? 'Last 30 days' : 'पिछले 30 दिन'}</p>
-             </div>
-             <div className="flex items-center gap-1.5">
-               <button 
-                 onClick={() => { loadBalanceHistory(); setShowBalanceHistory(!showBalanceHistory); }}
-                 className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] md:text-xs font-bold transition-colors ${showBalanceHistory ? 'bg-[var(--primary)] text-white' : 'bg-[var(--bg-input)] text-[var(--text-muted)] hover:text-[var(--primary)]'}`}
-               >
-                 <History size={12} />
-                 <span className="hidden md:inline">{lang === 'en' ? 'Snapshots' : 'स्नैपशॉट'}</span>
-               </button>
-               <button 
-                 onClick={() => setView('khata')}
-                 className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[var(--bg-input)] text-[var(--primary)] text-[10px] md:text-xs font-bold hover:bg-[var(--primary)] hover:text-white transition-colors"
-               >
-                 <TrendingUp size={12} />
-                 <span className="hidden md:inline">{lang === 'en' ? 'View All' : 'सभी देखें'}</span>
-               </button>
-             </div>
-           </div>
-           
-           {showBalanceHistory ? (
-             <div className="h-64 overflow-y-auto space-y-2">
-               {balanceHistory.length === 0 ? (
-                 <div className="flex items-center justify-center h-full text-[var(--text-muted)]">
-                   <div className="text-center">
-                     <History size={32} className="mx-auto mb-2 opacity-50" />
-                     <p className="text-sm">{lang === 'en' ? 'No snapshots yet' : 'अभी तक कोई स्नैपशॉट नहीं'}</p>
-                   </div>
-                 </div>
-               ) : balanceHistory.map((snap) => (
-                 <div key={snap.id} className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-glass)] border border-[var(--border)]">
-                   <div>
-                     <p className="text-sm font-medium text-[var(--text-main)]">{new Date(snap.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
-                     <div className="flex items-center gap-3 mt-1">
-                       <span className="text-xs text-[var(--success)]">+₹{snap.income?.toLocaleString('en-IN') || 0}</span>
-                       <span className="text-xs text-red-500">-₹{snap.expense?.toLocaleString('en-IN') || 0}</span>
-                     </div>
-                   </div>
-                   <div className="text-right">
-                     <p className={`text-lg font-bold ${snap.balance >= 0 ? 'text-[var(--success)]' : 'text-red-500'}`}>
-                       ₹{Math.abs(snap.balance).toLocaleString('en-IN')}
-                     </p>
-                     <span className="text-[10px] text-[var(--text-muted)]">{snap.balance < 0 ? 'DR' : 'CR'}</span>
-                   </div>
-                 </div>
-               ))}
-             </div>
-           ) : loading ? (
-             <div className="h-64 space-y-4">
-               <div className="relative h-48 flex items-end gap-1.5">
-                 {[...Array(14)].map((_, idx) => (
-                   <div key={idx} className="flex-1 flex flex-col items-center gap-1">
-                     <Skeleton className="w-full rounded-t-lg" style={{ height: `${20 + Math.random() * 60}%` }} />
-                     <Skeleton className="h-2 w-4" />
-                   </div>
-                 ))}
-               </div>
-               <div className="flex items-center justify-center gap-4">
-                 <Skeleton className="h-3 w-20" />
-                 <Skeleton className="h-3 w-20" />
-               </div>
-             </div>
-           ) : chartData.length === 0 ? (
-             <div className="h-64 flex flex-col items-center justify-center text-[var(--text-muted)]">
-               <TrendingUp size={48} className="opacity-20 mb-3" />
-               <p className="text-sm font-medium">{lang === 'en' ? 'No transactions yet' : 'अभी तक कोई लेनदेन नहीं'}</p>
-               <button 
-                 onClick={() => setView('khata')}
-                 className="mt-3 px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-xs font-bold hover:opacity-90"
-               >
-                 {lang === 'en' ? 'Add Transaction' : 'लेनदेन जोड़ें'}
-               </button>
-             </div>
-           ) : (
-             <div className="space-y-4">
-               {/* Chart */}
-               <div className="relative h-48 flex items-end gap-1.5">
-                 {chartData.slice(-14).map((day, idx) => {
-                   const heightPercent = range > 0 ? ((day.balance - minBalance) / range) * 100 : 50;
-                   const isPositive = day.balance >= 0;
-                   const hasActivity = day.income > 0 || day.expense > 0;
-                   
-                   return (
-                     <div key={idx} className="flex-1 flex flex-col items-center gap-2 group/bar">
-                       <div className="relative w-full flex flex-col justify-end" style={{ height: '160px' }}>
-                         {/* Tooltip */}
-                         <div className="absolute -top-16 left-1/2 -translate-x-1/2 opacity-0 group-hover/bar:opacity-100 transition-opacity z-10 pointer-events-none">
-                           <div className="bg-[var(--bg-glass)] backdrop-blur-xl border border-[var(--border)] rounded-lg p-2 shadow-xl min-w-[120px]">
-                             <p className="text-[10px] text-[var(--text-muted)] mb-1">{day.day}, {day.date}</p>
-                             <div className="space-y-0.5">
-                               <div className="flex items-center justify-between gap-2">
-                                 <span className="text-[10px] text-[var(--text-muted)]">Balance:</span>
-                                 <span className="text-xs font-bold text-[var(--text-main)]">₹{day.balance.toLocaleString('en-IN')}</span>
-                               </div>
-                               {day.income > 0 && (
-                                 <div className="flex items-center justify-between gap-2">
-                                   <span className="text-[10px] text-[var(--success)]">Income:</span>
-                                   <span className="text-xs font-bold text-[var(--success)]">₹{day.income.toLocaleString('en-IN')}</span>
-                                 </div>
-                               )}
-                               {day.expense > 0 && (
-                                 <div className="flex items-center justify-between gap-2">
-                                   <span className="text-[10px] text-red-500">Expense:</span>
-                                   <span className="text-xs font-bold text-red-500">₹{day.expense.toLocaleString('en-IN')}</span>
-                                 </div>
-                               )}
-                             </div>
-                           </div>
-                         </div>
-                         
-                         {/* Bar */}
-                         <div 
-                           className={`w-full rounded-t-lg transition-all duration-300 ${
-                             isPositive 
-                               ? 'bg-gradient-to-t from-[var(--primary)] to-[var(--secondary)]' 
-                               : 'bg-gradient-to-t from-red-500 to-orange-500'
-                           } ${
-                             hasActivity ? 'opacity-100' : 'opacity-30'
-                           } group-hover/bar:shadow-lg group-hover/bar:scale-105`}
-                           style={{ 
-                             height: `${Math.max(heightPercent, 5)}%`,
-                             minHeight: '8px'
-                           }}
-                         />
-                       </div>
-                       
-                       {/* Day label */}
-                       <span className="text-[9px] text-[var(--text-muted)] font-medium">{day.date}</span>
-                     </div>
-                   );
-                 })}
-               </div>
-               
-               {/* Summary Stats */}
-               <div className="grid grid-cols-3 gap-2 pt-3 border-t border-[var(--border)]">
-                 <div className="text-center">
-                   <div className="flex items-center justify-center gap-0.5 mb-0.5">
-                     <TrendingUp size={10} className="text-[var(--success)]" />
-                     <span className="text-[10px] text-[var(--text-muted)] font-medium">{lang === 'en' ? 'Income' : 'आय'}</span>
-                   </div>
-                   <p className="text-sm md:text-lg font-bold text-[var(--success)]">₹{totalIncome.toLocaleString('en-IN')}</p>
-                 </div>
-                 <div className="text-center">
-                   <div className="flex items-center justify-center gap-0.5 mb-0.5">
-                     <TrendingDown size={10} className="text-red-500" />
-                     <span className="text-[10px] text-[var(--text-muted)] font-medium">{lang === 'en' ? 'Expense' : 'खर्च'}</span>
-                   </div>
-                   <p className="text-sm md:text-lg font-bold text-red-500">₹{totalExpense.toLocaleString('en-IN')}</p>
-                 </div>
-                 <div className="text-center">
-                   <div className="flex items-center justify-center gap-0.5 mb-0.5">
-                     <Wallet size={10} className="text-[var(--primary)]" />
-                     <span className="text-[10px] text-[var(--text-muted)] font-medium">{lang === 'en' ? 'Net' : 'शुद्ध'}</span>
-                   </div>
-                   <p className={`text-sm md:text-lg font-bold ${
-                     balance >= 0 ? 'text-[var(--primary)]' : 'text-red-500'
-                   }`}>₹{Math.abs(balance).toLocaleString('en-IN')}</p>
-                 </div>
-               </div>
-             </div>
-           )}
-        </BentoCard>
-
-        {/* 4. Weather Widget */}
-        <WeatherWidget lang={lang} setView={setView} />
-
-        {/* 5. Saathi AI Assistant */}
-        <BentoCard onClick={() => setView('saathi')} className="cursor-pointer group bg-gradient-to-br from-[var(--primary)]/10 via-[var(--bg-card)] to-[var(--secondary)]/5 border border-[var(--primary)]/20 hover:border-[var(--primary)]/50 hover:shadow-xl transition-all !p-3 md:!p-4">
-           <div className="h-full flex flex-col justify-between">
-             <div>
-               <div className="flex items-center justify-between mb-2">
-                 <div className="p-2 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] shadow-lg">
-                   <Sparkles size={16} className="text-white" />
-                 </div>
-                 <ChevronRight className="text-[var(--text-muted)] group-hover:translate-x-1 transition-transform" size={16} />
-               </div>
-               <h3 className="text-sm md:text-lg font-bold text-[var(--text-main)] mb-0.5">{lang === 'en' ? 'Saathi AI' : 'साथी AI'}</h3>
-               <p className="text-[10px] md:text-xs text-[var(--text-muted)] line-clamp-2">{t('seasonal_tip_content')}</p>
-             </div>
-             <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-[var(--bg-input)] border border-[var(--border)] mt-2">
-               <Sprout size={12} className="text-[var(--primary)]" />
-               <span className="text-[10px] text-[var(--text-muted)] font-medium flex-1">{lang === 'en' ? 'Ask me...' : 'पूछें...'}</span>
-               <Send size={12} className="text-[var(--primary)]" />
-             </div>
-           </div>
-        </BentoCard>
-
-        {/* 6. Quick Actions Grid */}
-        <BentoCard onClick={() => setView('khata')} className="cursor-pointer group hover:border-[var(--primary)]/50 bg-[var(--bg-card)] border border-[var(--border)] !p-3 md:!p-4">
-           <div className="h-full flex flex-col justify-between">
-             <div className="flex items-center justify-between">
-               <div className="p-2 rounded-xl bg-[var(--success)]/10">
-                 <TrendingUp size={16} className="text-[var(--success)]" />
-               </div>
-               <span className="text-[10px] font-bold text-[var(--text-muted)] bg-[var(--bg-input)] px-1.5 py-0.5 rounded-full">{transactions.length}</span>
-             </div>
-             <div className="mt-2">
-               <h3 className="text-sm md:text-base font-bold text-[var(--text-main)] mb-0.5">{t('nav_khata')}</h3>
-               <p className="text-[10px] md:text-xs text-[var(--text-muted)]">{lang === 'en' ? 'Track transactions' : 'लेनदेन ट्रैक करें'}</p>
-             </div>
-           </div>
-        </BentoCard>
-
-        {/* 7. Government Schemes */}
-        <BentoCard onClick={() => setView('yojana')} className="cursor-pointer group hover:border-[var(--secondary)]/50 bg-gradient-to-br from-[var(--bg-card)] to-[var(--secondary)]/5 border border-[var(--border)] !p-3 md:!p-4">
-            <div className="h-full flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <div className="p-2 rounded-xl bg-[var(--secondary)]/10">
-                  <ShieldCheck size={16} className="text-[var(--secondary)]" />
-                </div>
-                <div className="flex items-center gap-0.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-pulse" />
-                  <span className="text-[9px] font-bold text-[var(--success)]">7</span>
-                </div>
-              </div>
-              <div className="mt-2">
-                <h3 className="text-sm md:text-base font-bold text-[var(--text-main)] mb-0.5">{t('nav_yojana')}</h3>
-                <p className="text-[10px] md:text-xs text-[var(--text-muted)]">{lang === 'en' ? 'Schemes' : 'योजनाएं'}</p>
+        {/* Profile Card */}
+        <div className="lg:col-span-2 bg-[var(--bg-card)] rounded-3xl p-5 relative overflow-hidden border border-[var(--border)]">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-[var(--text-muted)] text-sm mb-1">{lang === 'en' ? 'Welcome back' : 'वापस स्वागत है'}</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-[var(--text-main)] mb-1">
+                {profile?.name?.split(' ')[0] || 'Kisan'} <span className="text-[var(--primary)]">Ji</span>
+              </h1>
+              <p className="text-[var(--text-muted)] text-sm flex items-center gap-2">
+                <MapPin size={14} className="text-[var(--primary)]" />
+                {profile?.village || 'Your Village'} • {profile?.crop || 'Crops'}
+              </p>
+            </div>
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] flex items-center justify-center text-2xl shadow-lg text-[var(--bg-main)]">
+              {profile?.name?.charAt(0) || '👤'}
+            </div>
+          </div>
+          
+          {/* Today's Activity */}
+          <div className="mt-5 bg-[var(--bg-glass)] rounded-2xl p-4 border border-[var(--border)]">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[var(--text-muted)] text-xs">{lang === 'en' ? "Today's Activity" : 'आज की गतिविधि'}</p>
+              <div className="relative w-12 h-12">
+                <svg className="w-12 h-12 -rotate-90">
+                  <circle cx="24" cy="24" r="20" fill="none" stroke="#374151" strokeWidth="4" />
+                  <circle 
+                    cx="24" cy="24" r="20" 
+                    fill="none" 
+                    stroke="#c8e038" 
+                    strokeWidth="4" 
+                    strokeDasharray={`${Math.min(totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 126 : 0, 126)} 126`}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-[var(--primary)]">
+                  {totalIncome > 0 ? Math.round(((totalIncome - totalExpense) / totalIncome) * 100) : 0}%
+                </span>
               </div>
             </div>
-        </BentoCard>
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-bold text-[var(--text-main)]">{transactions.length}</span>
+              <span className="text-[var(--text-muted)] text-sm">{lang === 'en' ? 'transactions' : 'लेनदेन'}</span>
+            </div>
+          </div>
 
-        {/* 8. Learn Section */}
-        <BentoCard onClick={() => setView('seekho')} className="cursor-pointer group hover:border-amber-500/50 bg-gradient-to-br from-[var(--bg-card)] to-amber-500/5 border border-[var(--border)] !p-3 md:!p-4">
-           <div className="h-full flex flex-col justify-between">
-             <div className="flex items-center justify-between">
-               <div className="p-2 rounded-xl bg-amber-500/10">
-                 <BookOpen size={16} className="text-amber-600" />
-               </div>
-               <span className="text-[10px] font-bold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-full">6</span>
-             </div>
-             <div className="mt-2">
-               <h3 className="text-sm md:text-base font-bold text-[var(--text-main)] mb-0.5">{t('nav_seekho')}</h3>
-               <p className="text-[10px] md:text-xs text-[var(--text-muted)]">{lang === 'en' ? 'Learn' : 'सीखें'}</p>
-             </div>
-           </div>
-        </BentoCard>
+          {/* Balance Section - Only visible on mobile */}
+          <div className="mt-4 lg:hidden bg-gradient-to-br from-[#c8e038] to-[#9ab82a] rounded-2xl p-4 text-[#0a1f1a]">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Wallet size={18} />
+                <span className="text-xs font-semibold uppercase tracking-wide opacity-70">{t('balance')}</span>
+              </div>
+              <span className="text-xs font-bold bg-[#0a1f1a]/20 px-2 py-0.5 rounded-full">LIVE</span>
+            </div>
+            <p className="text-3xl font-bold tracking-tight mb-2">
+              ₹{loading ? '...' : Math.abs(balance).toLocaleString('en-IN')}
+            </p>
+            <div className="flex gap-6">
+              <div className="flex items-center gap-1.5">
+                <TrendingUp size={14} className="opacity-70" />
+                <div>
+                  <p className="text-[10px] opacity-60">{lang === 'en' ? 'Income' : 'आय'}</p>
+                  <p className="text-sm font-bold">₹{totalIncome.toLocaleString('en-IN')}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <TrendingDown size={14} className="opacity-70" />
+                <div>
+                  <p className="text-[10px] opacity-60">{lang === 'en' ? 'Expense' : 'खर्च'}</p>
+                  <p className="text-sm font-bold">₹{totalExpense.toLocaleString('en-IN')}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Balance Card - Only visible on desktop (right side) */}
+        <div className="hidden lg:block bg-gradient-to-br from-[#c8e038] to-[#9ab82a] rounded-3xl p-5 text-[#0a1f1a] relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16" />
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-2 bg-[#0a1f1a]/20 rounded-xl">
+                <Wallet size={20} />
+              </div>
+              <span className="text-xs font-bold bg-[#0a1f1a]/20 px-2 py-1 rounded-full">LIVE</span>
+            </div>
+            <p className="text-[#0a1f1a]/70 text-xs font-semibold uppercase tracking-wide mb-1">{t('balance')}</p>
+            <p className="text-4xl font-bold tracking-tight mb-3">
+              ₹{loading ? '...' : Math.abs(balance).toLocaleString('en-IN')}
+            </p>
+            <div className="flex gap-4">
+              <div>
+                <p className="text-[10px] text-[#0a1f1a]/60">{lang === 'en' ? 'Income' : 'आय'}</p>
+                <p className="text-sm font-bold flex items-center gap-1">
+                  <TrendingUp size={12} />
+                  ₹{totalIncome.toLocaleString('en-IN')}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#0a1f1a]/60">{lang === 'en' ? 'Expense' : 'खर्च'}</p>
+                <p className="text-sm font-bold flex items-center gap-1">
+                  <TrendingDown size={12} />
+                  ₹{totalExpense.toLocaleString('en-IN')}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-[var(--bg-card)] rounded-2xl p-4 border border-[var(--border)]">
+          <p className="text-[var(--text-muted)] text-xs mb-1">{lang === 'en' ? 'Savings Rate' : 'बचत दर'}</p>
+          <p className="text-[var(--text-muted)] text-[10px]">{lang === 'en' ? 'This month' : 'इस महीने'}</p>
+          <p className="text-2xl font-bold text-[var(--text-main)] mt-2">{totalIncome > 0 ? Math.round(((totalIncome - totalExpense) / totalIncome) * 100) : 0}%</p>
+        </div>
+        <div className="bg-[var(--bg-card)] rounded-2xl p-4 border border-[var(--border)]">
+          <p className="text-[var(--text-muted)] text-xs mb-1">{lang === 'en' ? 'Activity' : 'गतिविधि'}</p>
+          <p className="text-[var(--text-muted)] text-[10px]">{lang === 'en' ? 'This week' : 'इस सप्ताह'}</p>
+          <p className="text-2xl font-bold text-[var(--text-main)] mt-2">{transactions.length}</p>
+        </div>
+        <div className="bg-[var(--bg-card)] rounded-2xl p-4 col-span-2 border border-[var(--border)]">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[var(--text-muted)] text-xs mb-1">{lang === 'en' ? 'New schemes' : 'नई योजनाएं'}</p>
+              <p className="text-[var(--text-muted)] text-[10px]">{lang === 'en' ? 'Available for you' : 'आपके लिए उपलब्ध'}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-3xl font-bold text-[var(--text-main)]">4 <span className="text-[var(--primary)] text-lg">▲</span></p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-[10px] text-[var(--text-muted)]">● PM-KISAN</span>
+            <span className="text-[10px] text-[var(--text-muted)]">● {lang === 'en' ? 'Crop Insurance' : 'फसल बीमा'}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Chart + Quick Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        
+        {/* Weekly Chart */}
+        <div className="lg:col-span-2 bg-[var(--bg-card)] rounded-3xl p-5 border border-[var(--border)]">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-[var(--text-muted)] text-xs">{lang === 'en' ? 'Weekly Overview' : 'साप्ताहिक विवरण'}</p>
+              <p className="text-2xl font-bold text-[var(--text-main)]">₹{totalIncome.toLocaleString('en-IN')}</p>
+            </div>
+            <button onClick={() => setView('khata')} className="text-[var(--primary)] text-xs hover:underline flex items-center gap-1">
+              {lang === 'en' ? 'View All' : 'सभी देखें'} <ChevronRight size={14} />
+            </button>
+          </div>
+          
+          {/* Bar Chart */}
+          <div className="flex items-end justify-between gap-2 h-32 mt-4">
+            {chartData.slice(-7).map((day, i) => {
+              const maxVal = Math.max(...chartData.map(d => Math.max(d.income || 0, d.expense || 0)), 1);
+              const height = Math.max(((day.income || 0) / maxVal) * 100, 5);
+              const isToday = i === chartData.slice(-7).length - 1;
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                  <div className="w-full flex flex-col justify-end h-24">
+                    <div 
+                      className={`w-full rounded-t transition-all ${isToday ? 'bg-[var(--primary)]' : 'bg-[var(--border)]'}`}
+                      style={{ height: `${height}%`, minHeight: '4px' }}
+                    />
+                  </div>
+                  <span className={`text-[10px] font-medium ${isToday ? 'text-[var(--primary)]' : 'text-[var(--text-muted)]'}`}>
+                    {isToday ? (lang === 'en' ? 'TODAY' : 'आज') : day.day}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="space-y-3">
+          <div 
+            onClick={() => setView('saathi')}
+            className="bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-glass)] rounded-2xl p-4 cursor-pointer hover:ring-2 hover:ring-[var(--primary)]/50 transition-all group border border-[var(--border)]">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)]">
+                <Sparkles size={18} className="text-[var(--bg-main)]" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[var(--text-main)] font-semibold text-sm">{lang === 'en' ? 'Saathi AI' : 'साथी AI'}</p>
+                <p className="text-[var(--text-muted)] text-xs">{lang === 'en' ? 'Ask anything' : 'कुछ भी पूछें'}</p>
+              </div>
+              <ChevronRight size={16} className="text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors" />
+            </div>
+          </div>
+          
+          <div 
+            onClick={() => setView('mandi')}
+            className="bg-[var(--bg-card)] rounded-2xl p-4 cursor-pointer hover:ring-2 hover:ring-[var(--primary)]/50 transition-all group border border-[var(--border)]">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-orange-500/20">
+                <TrendingUp size={18} className="text-orange-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[var(--text-main)] font-semibold text-sm">{lang === 'en' ? 'Mandi Rates' : 'मंडी भाव'}</p>
+                <p className="text-[var(--text-muted)] text-xs">{lang === 'en' ? 'Live prices' : 'लाइव भाव'}</p>
+              </div>
+              <ChevronRight size={16} className="text-[var(--text-muted)] group-hover:text-orange-500 transition-colors" />
+            </div>
+          </div>
+
+          <div 
+            onClick={() => setView('yojana')}
+            className="bg-[var(--bg-card)] rounded-2xl p-4 cursor-pointer hover:ring-2 hover:ring-[var(--primary)]/50 transition-all group border border-[var(--border)]">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-blue-500/20">
+                <ShieldCheck size={18} className="text-blue-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[var(--text-main)] font-semibold text-sm">{lang === 'en' ? 'Schemes' : 'योजनाएं'}</p>
+                <p className="text-[var(--text-muted)] text-xs">{lang === 'en' ? '7 available' : '7 उपलब्ध'}</p>
+              </div>
+              <ChevronRight size={16} className="text-[var(--text-muted)] group-hover:text-blue-500 transition-colors" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Transactions */}
+      <div className="bg-[var(--bg-card)] rounded-3xl p-5 border border-[var(--border)]">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-[var(--text-main)] font-semibold">{lang === 'en' ? 'Recent Transactions' : 'हाल के लेनदेन'}</p>
+          <button onClick={() => setView('khata')} className="text-[var(--primary)] text-xs hover:underline">
+            {lang === 'en' ? 'See all' : 'सभी देखें'}
+          </button>
+        </div>
+        
+        <div className="space-y-2">
+          {transactions.slice(0, 4).length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <Wallet size={32} className="mx-auto mb-2 opacity-50" />
+              <p className="text-sm">{lang === 'en' ? 'No transactions yet' : 'कोई लेनदेन नहीं'}</p>
+            </div>
+          ) : transactions.slice(0, 4).map((txn, i) => (
+            <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-glass)] hover:bg-[var(--bg-input)] transition-colors border border-[var(--border)]">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                  txn.type === 'income' ? 'bg-[var(--primary)]/20' : 'bg-red-500/20'
+                }`}>
+                  {txn.type === 'income' ? (
+                    <TrendingUp size={18} className="text-[var(--primary)]" />
+                  ) : (
+                    <TrendingDown size={18} className="text-red-500" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-[var(--text-main)] text-sm font-medium">{txn.description || (txn.type === 'income' ? 'Income' : 'Expense')}</p>
+                  <p className="text-[var(--text-muted)] text-xs">
+                    {txn.timestamp ? new Date(txn.timestamp).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'Today'}
+                  </p>
+                </div>
+              </div>
+              <p className={`font-bold ${txn.type === 'income' ? 'text-[var(--primary)]' : 'text-red-500'}`}>
+                {txn.type === 'income' ? '+' : '-'}₹{Number(txn.amount).toLocaleString('en-IN')}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Bottom Action Grid - Vibrant Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <button onClick={() => setView('seekho')} className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-4 text-left hover:scale-105 transition-all relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8" />
+          <div className="relative">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-white/20">
+              <BookOpen size={20} className="text-white" />
+            </div>
+            <p className="text-white font-medium text-sm">{lang === 'en' ? 'Seekho' : 'सीखो'}</p>
+          </div>
+        </button>
+        <button onClick={() => setView('calculator')} className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl p-4 text-left hover:scale-105 transition-all relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8" />
+          <div className="relative">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-white/20">
+              <Calculator size={20} className="text-white" />
+            </div>
+            <p className="text-white font-medium text-sm">{lang === 'en' ? 'Calculator' : 'कैलकुलेटर'}</p>
+          </div>
+        </button>
+        <button onClick={() => setView('mausam')} className="bg-gradient-to-br from-sky-500 to-blue-600 rounded-2xl p-4 text-left hover:scale-105 transition-all relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8" />
+          <div className="relative">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-white/20">
+              <Cloud size={20} className="text-white" />
+            </div>
+            <p className="text-white font-medium text-sm">{lang === 'en' ? 'Weather' : 'मौसम'}</p>
+          </div>
+        </button>
+        <button onClick={() => setView('community')} className="bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl p-4 text-left hover:scale-105 transition-all relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8" />
+          <div className="relative">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-white/20">
+              <Users size={20} className="text-white" />
+            </div>
+            <p className="text-white font-medium text-sm">{lang === 'en' ? 'Community' : 'समुदाय'}</p>
+          </div>
+        </button>
       </div>
     </div>
   );
@@ -4123,54 +4178,35 @@ function TranslatorView({ lang, user, db, appId }) {
     setLoading(true);
     
     try {
-      // Check quota first
-      const remaining = getRemainingQuota();
-      if (remaining <= 0) {
-        throw new Error('QUOTA_EXCEEDED');
+      // Try to use translation API (will work on production Vercel/Netlify)
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: inputText,
+          from: fromLang === 'auto' ? 'auto' : fromLang,
+          to: toLang
+        })
+      });
+      
+      // If API is available (production), use it
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.translatedText) {
+          setOutputText(data.translatedText);
+          saveToHistory(inputText, data.translatedText, fromLang, toLang);
+          setLoading(false);
+          return;
+        }
       }
       
-      const fromName = languages.find(l => l.code === fromLang)?.name;
-      const toName = languages.find(l => l.code === toLang)?.name;
-      
-      const cacheKey = `translate_${fromLang}_${toLang}_${inputText.slice(0, 50)}`;
-      
-      const data = await callGeminiWithQuota(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: `Translate "${inputText}" from ${fromName} to ${toName}. Output ONLY the translated text, nothing else.`
-              }]
-            }]
-          })
-        },
-        cacheKey
-      );
-      
-      if (data.error) throw new Error(data.error.message);
-      const translation = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Translation failed';
-      setOutputText(translation.trim());
-      
-      // Save to history
-      saveToHistory(inputText, translation.trim(), fromLang, toLang);
+      // API not available or failed, use offline translation
+      throw new Error('Using offline translation');
       
     } catch (e) {
-      console.error('Translation error:', e);
-      
-      // Try offline fallback
-      if (e.message === 'QUOTA_EXCEEDED' || e.message.includes('quota') || e.message.includes('fetch')) {
-        const fallback = offlineFallback(inputText);
-        setOutputText(fallback.text);
-      } else {
-        setOutputText(lang === 'en' ? 'Translation error. Trying offline...' : 'अनुवाद त्रुटि। ऑफ़लाइन प्रयास...');
-        setTimeout(() => {
-          const fallback = offlineFallback(inputText);
-          setOutputText(fallback.text);
-        }, 500);
-      }
+      // Silently use offline translation (common in dev mode)
+      const fallback = offlineFallback(inputText);
+      setOutputText(fallback.text);
     }
     
     setLoading(false);
@@ -4360,6 +4396,7 @@ function CommunityView({ lang, user, db, appId, profile }) {
   const [newPostCategory, setNewPostCategory] = useState('general');
   const [submittingPost, setSubmittingPost] = useState(false);
   const [activeTab, setActiveTab] = useState('articles'); // 'articles' or 'community'
+  const [articleFilter, setArticleFilter] = useState('all'); // 'all', 'loans', 'security', 'savings', 'schemes'
 
   // Load user posts from Firebase
   useEffect(() => {
@@ -4511,12 +4548,34 @@ function CommunityView({ lang, user, db, appId, profile }) {
       id: 1,
       author: authors[0],
       date: '23 Dec 2025',
-      readTime: '4 min',
+      readTime: '8 min',
       image: 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?w=800&q=80',
       title: lang === 'en' ? 'Understanding KCC: Your Gateway to Affordable Farm Loans' : 'KCC को समझें: सस्ते कृषि ऋण का द्वार',
       content: lang === 'en' 
-        ? 'The Kisan Credit Card (KCC) scheme is a revolutionary initiative that offers loans to farmers at just 7% interest. What many don\'t know is that timely repayment earns you an additional 3% subsidy, bringing the effective rate to just 4%! This is far better than local moneylenders who charge 24-36% or more. To apply, visit your nearest bank with land documents, Aadhaar, and passport photos. The process takes about 2 weeks.'
-        : 'किसान क्रेडिट कार्ड (KCC) योजना एक क्रांतिकारी पहल है जो किसानों को सिर्फ 7% ब्याज पर ऋण देती है। समय पर चुकाने पर 3% अतिरिक्त सब्सिडी मिलती है, यानी प्रभावी दर सिर्फ 4%! यह स्थानीय साहूकारों के 24-36% से कहीं बेहतर है।',
+        ? `The Kisan Credit Card (KCC) scheme, launched in 1998 by the Government of India, is one of the most revolutionary initiatives designed specifically to help farmers access affordable credit for their agricultural needs. Unlike traditional bank loans that can take weeks to process and charge interest rates of 12-15% or higher, KCC provides farmers with quick access to loans at just 7% annual interest. What makes this even more attractive is the additional 3% interest subvention provided by the government for timely repayment, effectively bringing the interest rate down to just 4% per annum.
+
+The scheme covers a wide range of agricultural expenses including purchase of seeds, fertilizers, pesticides, and other inputs. It also provides working capital for crop production, post-harvest expenses, and even marketing of produce. According to the Reserve Bank of India's 2023 report, over 7.5 crore farmers across India have benefited from KCC, with total credit disbursement exceeding ₹8 lakh crore.
+
+Key Benefits of KCC:
+• Interest rate as low as 4% with timely repayment subsidy
+• Credit limit based on land holding and crop pattern
+• Flexibility to withdraw any amount up to the credit limit
+• Personal accident insurance cover of ₹50,000 to ₹1 lakh
+• No processing fees for loans up to ₹3 lakh
+• Validity of 5 years with annual review
+
+To apply for a KCC, visit your nearest bank branch (nationalized, cooperative, or regional rural bank) with your land ownership documents, Aadhaar card, PAN card, and two passport-sized photographs. The bank will assess your eligibility based on the Scale of Finance fixed by the District Level Technical Committee and sanction an appropriate credit limit. The entire process typically takes 2-3 weeks.
+
+Reference: Reserve Bank of India - Priority Sector Lending Guidelines (2023), Ministry of Agriculture & Farmers Welfare - KCC Scheme Guidelines`
+        : `किसान क्रेडिट कार्ड (KCC) योजना 1998 में भारत सरकार द्वारा शुरू की गई एक क्रांतिकारी पहल है। यह किसानों को सिर्फ 7% ब्याज दर पर ऋण प्रदान करती है। समय पर चुकाने पर 3% अतिरिक्त सब्सिडी मिलती है, यानी प्रभावी दर सिर्फ 4%!
+
+मुख्य लाभ:
+• समय पर भुगतान पर 4% की कम ब्याज दर
+• भूमि और फसल के आधार पर क्रेडिट सीमा
+• ₹50,000 से ₹1 लाख का दुर्घटना बीमा कवर
+• ₹3 लाख तक के ऋण पर कोई प्रोसेसिंग शुल्क नहीं
+
+आवेदन के लिए अपने नजदीकी बैंक में भूमि दस्तावेज, आधार कार्ड और पासपोर्ट फोटो लेकर जाएं।`,
       category: { en: 'Loans & Credit', hi: 'ऋण और क्रेडिट' },
       categoryColor: 'bg-blue-100 text-blue-700',
       initialVotes: 247
@@ -4525,12 +4584,36 @@ function CommunityView({ lang, user, db, appId, profile }) {
       id: 2,
       author: authors[1],
       date: '22 Dec 2025',
-      readTime: '3 min',
+      readTime: '7 min',
       image: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=800&q=80',
       title: lang === 'en' ? 'STOP! How to Identify OTP & KYC Scams' : 'रुकें! OTP और KYC धोखाधड़ी कैसे पहचानें',
       content: lang === 'en'
-        ? 'Fraud calls are increasing daily. Remember these golden rules: 1) Banks NEVER ask for OTP or PIN on phone. 2) No one needs your password to "update KYC". 3) Government schemes don\'t require advance fees. 4) If someone creates urgency, it\'s likely a scam. If you receive such calls, immediately hang up and report to 1930 (Cyber Crime Helpline). Your money, your responsibility!'
-        : 'धोखाधड़ी कॉल रोज बढ़ रही हैं। याद रखें: 1) बैंक कभी फोन पर OTP नहीं मांगता। 2) KYC के लिए पासवर्ड की जरूरत नहीं। 3) सरकारी योजनाओं में पहले पैसे नहीं लगते। संदिग्ध कॉल पर 1930 पर रिपोर्ट करें।',
+        ? `Financial fraud targeting rural areas has increased by over 300% in the last three years, according to the Cyber Crime Prevention Wing. Scammers have become increasingly sophisticated, using official-sounding language, fake caller IDs showing bank numbers, and creating artificial urgency to trick unsuspecting farmers into sharing sensitive information. Understanding how these scams work is your first line of defense.
+
+The most common scam involves a caller pretending to be from your bank, claiming that your KYC (Know Your Customer) documents are expiring and your account will be frozen. They'll ask you to share your OTP (One Time Password) or download a screen-sharing app like AnyDesk or TeamViewer. Once they have access, they can drain your entire bank account within minutes. Remember: No legitimate bank employee will EVER ask for your OTP, PIN, or password over the phone.
+
+Warning Signs of a Scam Call:
+• Caller creates urgency ("Your account will be blocked in 2 hours!")
+• Asks for OTP, PIN, CVV, or full card number
+• Requests you to download any app or click any link
+• Offers too-good-to-be-true prizes or lottery winnings
+• Claims to be from "RBI" or "Government" asking for advance fees
+• Uses threatening language about legal action
+
+If you receive such a call, immediately hang up and NEVER share any information. Report to the National Cyber Crime Helpline at 1930 or file a complaint at cybercrime.gov.in. Block the number and inform your family members as scammers often target multiple people in the same village. If you've already shared information, contact your bank immediately to block your account and cards.
+
+Statistics from the Indian Cyber Crime Coordination Centre show that in 2023, rural areas reported losses of over ₹1,200 crore to such scams. The average victim loses ₹47,000 - often their entire savings. Don't become a statistic. When in doubt, visit your bank branch in person.
+
+Reference: Indian Cyber Crime Coordination Centre Annual Report 2023, RBI Guidelines on Customer Protection`
+        : `पिछले तीन वर्षों में ग्रामीण क्षेत्रों में वित्तीय धोखाधड़ी 300% से अधिक बढ़ी है। ठग बैंक कर्मचारी बनकर कॉल करते हैं और KYC अपडेट के नाम पर OTP मांगते हैं।
+
+धोखाधड़ी के संकेत:
+• कॉलर जल्दबाजी करता है
+• OTP, PIN या पासवर्ड मांगता है
+• कोई ऐप डाउनलोड करने को कहता है
+• बड़ी राशि का इनाम या लॉटरी का झांसा देता है
+
+अगर ऐसी कॉल आए तो तुरंत काट दें। 1930 पर रिपोर्ट करें या cybercrime.gov.in पर शिकायत दर्ज करें।`,
       category: { en: 'Security', hi: 'सुरक्षा' },
       categoryColor: 'bg-red-100 text-red-700',
       initialVotes: 189
@@ -4539,12 +4622,35 @@ function CommunityView({ lang, user, db, appId, profile }) {
       id: 3,
       author: authors[2],
       date: '21 Dec 2025',
-      readTime: '5 min',
+      readTime: '9 min',
       image: 'https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=800&q=80',
       title: lang === 'en' ? 'The 20% Rule: Smart Saving After Harvest' : '20% नियम: फसल के बाद स्मार्ट बचत',
       content: lang === 'en'
-        ? 'The biggest mistake farmers make is spending all harvest money at once. Follow the 20% rule: Before ANY expense, transfer 20% to a separate savings account. Open a "No-Frills" account at any bank (zero balance required). Set up auto-transfer on mandi payment day. This simple habit can build ₹50,000+ emergency fund in 2-3 seasons. Your future self will thank you!'
-        : 'किसानों की सबसे बड़ी गलती: फसल का सारा पैसा एक बार में खर्च करना। 20% नियम अपनाएं: कोई भी खर्च करने से पहले 20% अलग बचत खाते में डालें। "नो-फ्रिल्स" खाता खोलें और मंडी भुगतान वाले दिन ऑटो-ट्रांसफर सेट करें।',
+        ? `The harvest season brings relief and joy to farming households, but it also brings a critical financial decision that can determine the family's security for the entire year. Research by the National Bank for Agriculture and Rural Development (NABARD) shows that over 73% of farmer households have zero savings, making them extremely vulnerable to any unexpected expense or crop failure. The 20% rule is a simple yet powerful habit that can transform your financial future.
+
+The concept is straightforward: before spending a single rupee from your harvest income, set aside exactly 20% into a separate savings account. This should be done on the same day you receive payment at the mandi. Open a Basic Savings Bank Deposit (BSBD) account - these are zero-balance accounts that every bank must offer. Set up an automatic transfer if possible, so you never have to make the conscious decision to save.
+
+Why 20% Works:
+• It's a significant amount that actually builds wealth over time
+• It's small enough that you can still manage regular expenses
+• At typical mandi prices, 20% of 2-3 harvests can build ₹50,000+ emergency fund
+• This fund can prevent distress borrowing at 36%+ interest rates
+• It provides a cushion for unexpected medical expenses or crop failure
+
+Building this habit takes discipline. The first season will be the hardest - you'll think of many "necessary" expenses that the 20% could cover. Resist the temptation. Think of this money as already spent - it doesn't exist for daily needs. Within 2-3 years, you'll have enough saved to handle most emergencies without borrowing, make investments in better equipment or seeds, and even start planning for your children's education.
+
+Consider using the Post Office Recurring Deposit (RD) scheme which offers 6.5% interest and allows monthly deposits starting from just ₹100. The discipline of monthly deposits is often easier than one-time large savings.
+
+Reference: NABARD All India Rural Financial Inclusion Survey 2023, India Post Savings Schemes Guidelines`
+        : `फसल का मौसम खुशी लाता है, लेकिन NABARD के अनुसार 73% किसान परिवारों के पास कोई बचत नहीं है। 20% नियम इस स्थिति को बदल सकता है।
+
+20% क्यों काम करता है:
+• यह समय के साथ वास्तविक धन बनाता है
+• 2-3 फसलों में ₹50,000+ का आपातकालीन कोष बन सकता है
+• 36%+ ब्याज पर उधार लेने से बचाता है
+• अप्रत्याशित खर्चों से सुरक्षा प्रदान करता है
+
+डाकघर की आवर्ती जमा (RD) योजना में निवेश करें जो 6.5% ब्याज देती है।`,
       category: { en: 'Savings', hi: 'बचत' },
       categoryColor: 'bg-green-100 text-green-700',
       initialVotes: 312
@@ -4553,12 +4659,39 @@ function CommunityView({ lang, user, db, appId, profile }) {
       id: 4,
       author: authors[3],
       date: '20 Dec 2025',
-      readTime: '4 min',
+      readTime: '8 min',
       image: 'https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=800&q=80',
       title: lang === 'en' ? 'PM Fasal Bima: Protect Your Crops for Just 2%' : 'PM फसल बीमा: सिर्फ 2% में फसल सुरक्षा',
       content: lang === 'en'
-        ? 'Did you know crop insurance premium is just 2% for Kharif and 1.5% for Rabi? PM Fasal Bima Yojana covers losses from floods, drought, pests, and more. Last year, farmers in 15 districts received ₹8,000 crore in claims! Register before sowing at your bank, CSC, or through the official app. Don\'t let one bad season destroy years of hard work.'
-        : 'क्या आप जानते हैं फसल बीमा प्रीमियम खरीफ के लिए सिर्फ 2% और रबी के लिए 1.5% है? PM फसल बीमा योजना बाढ़, सूखा, कीट आदि से नुकसान को कवर करती है। पिछले साल 15 जिलों के किसानों को ₹8,000 करोड़ का दावा मिला!',
+        ? `Agriculture in India is inherently risky, with farmers facing threats from unpredictable weather, pest attacks, and natural disasters. The Pradhan Mantri Fasal Bima Yojana (PMFBY), launched in 2016, is the world's largest crop insurance scheme and provides comprehensive protection to farmers at highly subsidized premium rates. In 2023 alone, over 5.5 crore farmer applications were enrolled, covering more than 1,100 lakh hectares of farmland.
+
+The premium structure is remarkably farmer-friendly. For Kharif crops (like paddy, cotton, bajra), the farmer pays just 2% of the sum insured. For Rabi crops (like wheat, mustard, chickpea), it's only 1.5%. For annual commercial and horticultural crops, the premium is 5%. The remaining premium - which can be as high as 15-20% of the sum insured - is shared equally between the Central and State governments. This means a farmer insuring a wheat crop worth ₹50,000 pays just ₹750 as premium.
+
+What PMFBY Covers:
+• Prevented sowing/planting risk due to deficit rainfall or adverse conditions
+• Standing crop losses from non-preventable risks (drought, flood, hail, cyclone)
+• Post-harvest losses up to 14 days from cutting
+• Localized calamities like hailstorm, landslide, inundation
+• Wild animal attacks (in some states)
+
+The claim settlement process has been significantly improved with mandatory use of technology. Crop Cutting Experiments (CCEs) are now conducted using smartphones with geo-tagged photos, and satellite imagery is used to assess large-scale damage. Claims are directly credited to the farmer's bank account linked with Aadhaar.
+
+To enroll, visit your bank, Primary Agricultural Credit Society (PACS), Common Service Centre (CSC), or use the official Crop Insurance Portal (pmfby.gov.in) or app before the cutoff dates - typically 2 weeks before sowing begins.
+
+Reference: PMFBY Official Portal Statistics 2023, Ministry of Agriculture Annual Report 2022-23`
+        : `प्रधानमंत्री फसल बीमा योजना (PMFBY) दुनिया की सबसे बड़ी फसल बीमा योजना है। 2023 में 5.5 करोड़ से अधिक किसान इसमें शामिल हुए।
+
+प्रीमियम संरचना:
+• खरीफ फसलों के लिए: बीमित राशि का सिर्फ 2%
+• रबी फसलों के लिए: सिर्फ 1.5%
+• वार्षिक वाणिज्यिक फसलों के लिए: 5%
+
+क्या-क्या कवर होता है:
+• सूखा, बाढ़, ओलावृष्टि से नुकसान
+• कटाई के बाद 14 दिनों तक का नुकसान
+• स्थानीय आपदाएं जैसे भूस्खलन
+
+नामांकन के लिए बैंक, PACS या pmfby.gov.in पर जाएं।`,
       category: { en: 'Insurance', hi: 'बीमा' },
       categoryColor: 'bg-purple-100 text-purple-700',
       initialVotes: 198
@@ -4567,12 +4700,36 @@ function CommunityView({ lang, user, db, appId, profile }) {
       id: 5,
       author: authors[4],
       date: '19 Dec 2025',
-      readTime: '3 min',
+      readTime: '7 min',
       image: 'https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=800&q=80',
       title: lang === 'en' ? 'Soil Health Card: Boost Yield by 20% Free!' : 'मृदा स्वास्थ्य कार्ड: 20% अधिक उपज, मुफ्त!',
       content: lang === 'en'
-        ? 'Most farmers use fertilizers based on guesswork, wasting money and harming soil. The Soil Health Card scheme provides FREE soil testing! Visit your nearest Krishi Vigyan Kendra with a soil sample. Within 2 weeks, you\'ll get a detailed report showing exactly which nutrients your soil needs. Farmers using SHC recommendations report 15-20% higher yields with LESS fertilizer cost.'
-        : 'ज्यादातर किसान अंदाजे से खाद डालते हैं। मृदा स्वास्थ्य कार्ड योजना मुफ्त मिट्टी जांच देती है! नजदीकी KVK में मिट्टी का नमूना लेकर जाएं। 2 हफ्ते में रिपोर्ट मिलेगी जो बताएगी आपकी मिट्टी को कौन सा पोषक तत्व चाहिए।',
+        ? `India's agricultural productivity is significantly lower than global averages, and one of the primary reasons is the unscientific use of fertilizers. Most farmers apply fertilizers based on tradition or guesswork rather than actual soil requirements. This leads to nutrient imbalances, soil degradation, increased costs, and ultimately lower yields. The Soil Health Card (SHC) scheme, launched in 2015, addresses this problem by providing every farmer with a detailed analysis of their soil's nutrient status and customized fertilizer recommendations.
+
+The Soil Health Card is issued once every three years and contains detailed information about 12 parameters: pH, electrical conductivity, organic carbon, and primary nutrients (nitrogen, phosphorus, potassium), secondary nutrients (sulphur), and micronutrients (zinc, iron, copper, manganese, boron). Based on these tests, the card provides crop-specific fertilizer recommendations - telling you exactly how much urea, DAP, or micronutrient mix to apply for each crop you plan to grow.
+
+Benefits Reported by Farmers:
+• 15-25% increase in yield through balanced fertilization
+• 10-15% reduction in fertilizer costs
+• Improved soil health and sustainability
+• Better understanding of soil conditions
+• Reduced environmental impact from over-fertilization
+
+To get your Soil Health Card, collect a soil sample from your field following these steps: Take samples from 5-6 spots across the field, from a depth of 0-15 cm. Remove any debris or roots. Mix all samples thoroughly and take about 500 grams in a clean cloth or plastic bag. Label it with your name, village, and Khasra number. Submit it to your nearest Krishi Vigyan Kendra (KVK), agricultural office, or registered testing laboratory. The test is completely FREE under the government scheme.
+
+Once you receive your card, discuss the recommendations with the agricultural extension officer at KVK. They can help you understand the results and create a customized fertilization plan for your specific crops and field conditions.
+
+Reference: Soil Health Card Portal (soilhealth.dac.gov.in), Indian Council of Agricultural Research Studies`
+        : `भारत की कृषि उत्पादकता वैश्विक औसत से काफी कम है, इसका मुख्य कारण उर्वरकों का अवैज्ञानिक उपयोग है। मृदा स्वास्थ्य कार्ड इस समस्या का समाधान करता है।
+
+SHC में 12 मापदंडों की जानकारी होती है: pH, जैविक कार्बन, नाइट्रोजन, फास्फोरस, पोटाश, सल्फर, जिंक आदि।
+
+किसानों द्वारा रिपोर्ट किए गए लाभ:
+• 15-25% उपज में वृद्धि
+• 10-15% उर्वरक लागत में कमी
+• मिट्टी का स्वास्थ्य बेहतर
+
+नमूना लेने के लिए खेत के 5-6 स्थानों से मिट्टी एकत्र करें और नजदीकी KVK में जमा करें। जांच पूरी तरह मुफ्त है।`,
       category: { en: 'Farming', hi: 'खेती' },
       categoryColor: 'bg-amber-100 text-amber-700',
       initialVotes: 276
@@ -4581,12 +4738,43 @@ function CommunityView({ lang, user, db, appId, profile }) {
       id: 6,
       author: authors[0],
       date: '18 Dec 2025',
-      readTime: '4 min',
+      readTime: '6 min',
       image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&q=80',
       title: lang === 'en' ? 'UPI for Farmers: Send Money Without Fees' : 'किसानों के लिए UPI: बिना शुल्क पैसे भेजें',
       content: lang === 'en'
-        ? 'Still paying ₹50-100 to money transfer agents? UPI is FREE! Download BHIM, PhonePe, or Google Pay. Link your bank account using Aadhaar. Now send money to anyone instantly using their phone number. No forms, no queues, no fees. Even mandi payments can be received directly. Start with small amounts to build confidence.'
-        : 'अभी भी ₹50-100 ट्रांसफर एजेंट को दे रहे हैं? UPI मुफ्त है! BHIM, PhonePe या Google Pay डाउनलोड करें। आधार से बैंक खाता जोड़ें। अब फोन नंबर से तुरंत पैसे भेजें। कोई फॉर्म नहीं, कोई कतार नहीं।',
+        ? `The Unified Payments Interface (UPI) has revolutionized digital payments in India, and farmers stand to benefit enormously from this technology. Before UPI, sending money to family members, paying suppliers, or receiving mandi payments involved expensive money transfer agents who charged ₹50-100 per transaction, or time-consuming bank visits. UPI eliminates all these costs and inconveniences - transactions are instant, free, and can be done 24/7 from your mobile phone.
+
+UPI works by linking your bank account to a simple identifier called UPI ID (like yourname@upi). Once set up, you can send money to anyone using their phone number, UPI ID, or by scanning a QR code. Major apps like BHIM (developed by NPCI), Google Pay, PhonePe, and Paytm all support UPI. For farmers who may not be comfortable with English interfaces, BHIM is available in 13 Indian languages including Hindi, Punjabi, Gujarati, Marathi, Tamil, Telugu, and more.
+
+Getting Started with UPI:
+• Download BHIM app from Google Play Store or App Store
+• Select your preferred language during setup
+• Link your Aadhaar-registered mobile number (same as registered with bank)
+• Select your bank and verify with ATM debit card or OTP
+• Create a 6-digit UPI PIN (like an ATM PIN but for UPI)
+• Your UPI ID will be automatically created
+
+Many mandis now accept UPI payments, meaning you can receive your crop sale amount directly to your bank account without carrying cash. The PM-KISAN payments of ₹6,000 per year can also be received in accounts linked to UPI. With UPI, you can also pay for seeds, fertilizers, equipment, and other inputs directly to verified sellers without cash.
+
+Security Tips:
+• Never share your UPI PIN with anyone
+• Only scan QR codes from trusted sources
+• Check the receiver's name before confirming payment
+• Set transaction limits in your UPI app settings
+
+Reference: NPCI UPI Transaction Statistics 2023, RBI Digital Payments Guidelines`
+        : `UPI ने भारत में डिजिटल भुगतान को बदल दिया है। पहले ₹50-100 ट्रांसफर एजेंट को देने पड़ते थे, अब UPI से मुफ्त और तुरंत पैसे भेजें।
+
+UPI शुरू करने के चरण:
+• BHIM ऐप डाउनलोड करें
+• अपनी पसंद की भाषा चुनें
+• बैंक से जुड़ा मोबाइल नंबर दर्ज करें
+• बैंक चुनें और ATM कार्ड या OTP से वेरिफाई करें
+• 6 अंकों का UPI PIN बनाएं
+
+सुरक्षा सुझाव:
+• UPI PIN किसी को न बताएं
+• भुगतान से पहले प्राप्तकर्ता का नाम जांचें`,
       category: { en: 'Digital Banking', hi: 'डिजिटल बैंकिंग' },
       categoryColor: 'bg-cyan-100 text-cyan-700',
       initialVotes: 345
@@ -4595,12 +4783,40 @@ function CommunityView({ lang, user, db, appId, profile }) {
       id: 7,
       author: authors[2],
       date: '17 Dec 2025',
-      readTime: '5 min',
+      readTime: '10 min',
       image: 'https://images.unsplash.com/photo-1593113598332-cd288d649433?w=800&q=80',
       title: lang === 'en' ? 'Women SHGs: Build Wealth Together' : 'महिला स्वयं सहायता समूह: मिलकर धन बनाएं',
       content: lang === 'en'
-        ? 'Self-Help Groups are transforming rural women\'s lives. With just ₹100-500 monthly contribution, groups can access loans up to ₹20 lakhs at 4% interest under DAY-NRLM. Many SHGs now run successful dairy, tailoring, and food processing businesses. To start: gather 10-15 women, register at the nearest bank, and begin weekly meetings. Government also provides skill training free of cost!'
-        : 'स्वयं सहायता समूह ग्रामीण महिलाओं का जीवन बदल रहे हैं। सिर्फ ₹100-500 मासिक योगदान से, DAY-NRLM के तहत 4% ब्याज पर ₹20 लाख तक ऋण मिलता है। शुरू करने के लिए 10-15 महिलाओं को इकट्ठा करें और बैंक में रजिस्टर करें।',
+        ? `Self-Help Groups (SHGs) have emerged as one of the most powerful tools for women's financial inclusion and empowerment in rural India. The model is simple yet revolutionary: a group of 10-20 women from similar economic backgrounds come together, save small amounts regularly, and use the pooled funds to provide loans to members. Over time, these groups develop creditworthiness and can access larger bank loans at highly subsidized rates. Today, there are over 90 lakh SHGs in India, with more than 12 crore women members managing collective savings of over ₹47,000 crore.
+
+The Deendayal Antyodaya Yojana - National Rural Livelihoods Mission (DAY-NRLM) provides extensive support to SHGs. Qualifying groups can access bank loans up to ₹20 lakh at just 4% interest (7% bank rate minus 3% government subsidy). The first loan is typically ₹1-2 lakh, scaling up with good repayment history. Many SHGs have used these funds to start successful micro-enterprises in dairy, poultry, tailoring, food processing, handicrafts, and retail.
+
+How to Start an SHG:
+• Gather 10-15 women from similar economic backgrounds in your village
+• Agree on a regular meeting schedule (weekly or bi-weekly works best)
+• Decide on a monthly contribution amount (₹100-500 per member is common)
+• Open a savings account in the group's name at the nearest bank
+• Begin maintaining minutes of meetings and financial records
+• After 3-6 months of regular savings, apply for SHG registration
+
+Success Stories from the Field:
+• Kudumbashree in Kerala: 45 lakh women, ₹4,000 crore annual turnover
+• Mahila Arthik Vikas Mahamandal (MAVIM) in Maharashtra: 6 lakh SHGs
+• Many SHGs have graduated to Farmer Producer Organizations (FPOs)
+
+Beyond financial benefits, SHGs provide women with confidence, decision-making power, and a support network. Members report improved status in households, greater say in family finances, and reduced domestic violence. The social capital built through these groups is often as valuable as the financial capital.
+
+Reference: DAY-NRLM Annual Report 2022-23, NABARD SHG Bank Linkage Report`
+        : `स्वयं सहायता समूह (SHGs) ग्रामीण महिलाओं के वित्तीय सशक्तिकरण का सबसे शक्तिशाली माध्यम है। आज भारत में 90 लाख से अधिक SHG हैं जिनमें 12 करोड़+ महिलाएं हैं।
+
+DAY-NRLM के तहत SHGs को 4% ब्याज पर ₹20 लाख तक का ऋण मिलता है।
+
+SHG कैसे शुरू करें:
+• 10-15 समान आर्थिक पृष्ठभूमि वाली महिलाओं को इकट्ठा करें
+• साप्ताहिक बैठक का समय तय करें
+• मासिक योगदान राशि (₹100-500) तय करें
+• नजदीकी बैंक में समूह के नाम खाता खोलें
+• 3-6 महीने की नियमित बचत के बाद पंजीकरण के लिए आवेदन करें`,
       category: { en: 'Women Empowerment', hi: 'महिला सशक्तिकरण' },
       categoryColor: 'bg-pink-100 text-pink-700',
       initialVotes: 289
@@ -4609,12 +4825,49 @@ function CommunityView({ lang, user, db, appId, profile }) {
       id: 8,
       author: authors[4],
       date: '16 Dec 2025',
-      readTime: '3 min',
+      readTime: '6 min',
       image: 'https://images.unsplash.com/photo-1560493676-04071c5f467b?w=800&q=80',
       title: lang === 'en' ? 'MSP: Know Your Crop\'s True Worth' : 'MSP: अपनी फसल की असली कीमत जानें',
       content: lang === 'en'
-        ? 'Minimum Support Price (MSP) guarantees fair prices for 23 crops. For 2024-25: Wheat ₹2,275/quintal, Paddy ₹2,300, Mustard ₹5,650. Sell at government procurement centers (mandis) to get MSP. Don\'t let middlemen buy below MSP - it\'s illegal! Check current rates on the PM-KISAN app or call 1800-180-1551.'
-        : 'न्यूनतम समर्थन मूल्य (MSP) 23 फसलों के लिए उचित मूल्य की गारंटी देता है। 2024-25: गेहूं ₹2,275/क्विंटल, धान ₹2,300, सरसों ₹5,650। MSP पाने के लिए सरकारी मंडियों में बेचें।',
+        ? `Minimum Support Price (MSP) is the guaranteed price at which the government promises to purchase farmers' produce, ensuring that farmers don't suffer losses even when market prices fall. The Commission for Agricultural Costs and Prices (CACP) recommends MSP for 23 crops every year, taking into account cost of production, supply and demand, price trends in domestic and international markets, and a fair margin for farmers. Understanding MSP is crucial because it represents the baseline value of your hard work - no one should buy your produce below this price.
+
+MSP Rates for Major Crops (2024-25 Marketing Season):
+• Paddy (Common): ₹2,300 per quintal
+• Wheat: ₹2,275 per quintal
+• Mustard: ₹5,650 per quintal
+• Gram (Chana): ₹5,440 per quintal
+• Cotton (Medium Staple): ₹6,620 per quintal
+• Maize: ₹2,225 per quintal
+• Groundnut: ₹6,377 per quintal
+• Soybean: ₹4,892 per quintal
+
+To get MSP for your crops, you must sell at authorized government procurement centers, usually located at Agricultural Produce Market Committee (APMC) mandis. The procurement is done by agencies like Food Corporation of India (FCI), NAFED, Cotton Corporation of India, and state-level agencies. Registration for government procurement typically opens before the harvest season - check with your local mandi or agricultural office.
+
+Important Points to Remember:
+• MSP is NOT automatically guaranteed - you must sell to government agencies
+• Private traders and mandis may offer below MSP (though it's discouraged)
+• Quality specifications (moisture content, foreign matter) must be met
+• Payment is made directly to bank accounts within 3-5 days of sale
+• Check current MSP rates on the PM-KISAN app or by calling 1800-180-1551
+
+If you find any trader trying to buy below MSP, you can file a complaint with the District Agriculture Officer or on the e-NAM portal. While enforcement varies, knowing your rights puts you in a stronger negotiating position.
+
+Reference: CACP MSP Recommendations 2024-25, Ministry of Consumer Affairs Price Monitoring Division`
+        : `न्यूनतम समर्थन मूल्य (MSP) वह गारंटी मूल्य है जिस पर सरकार किसानों की उपज खरीदती है। 23 फसलों के लिए MSP घोषित होता है।
+
+2024-25 के प्रमुख MSP:
+• धान: ₹2,300 प्रति क्विंटल
+• गेहूं: ₹2,275 प्रति क्विंटल
+• सरसों: ₹5,650 प्रति क्विंटल
+• चना: ₹5,440 प्रति क्विंटल
+• कपास: ₹6,620 प्रति क्विंटल
+
+याद रखें:
+• MSP पाने के लिए सरकारी एजेंसियों को बेचना जरूरी है
+• गुणवत्ता मानक (नमी, अशुद्धियां) पूरे करने होंगे
+• भुगतान 3-5 दिनों में सीधे बैंक खाते में होता है
+
+MSP दरें PM-KISAN ऐप पर देखें या 1800-180-1551 पर कॉल करें।`,
       category: { en: 'Market Prices', hi: 'बाजार भाव' },
       categoryColor: 'bg-indigo-100 text-indigo-700',
       initialVotes: 234
@@ -5073,9 +5326,6 @@ function CommunityView({ lang, user, db, appId, profile }) {
                   <MessageCircle className="text-[var(--primary)]" size={20} />
                   {lang === 'en' ? 'Community Discussions' : 'समुदाय चर्चा'}
                 </h2>
-                <p className="text-xs md:text-sm text-[var(--text-muted)]">
-                  {lang === 'en' ? 'Share problems, ask questions, help each other' : 'समस्याएं साझा करें, सवाल पूछें'}
-                </p>
               </div>
 
               {userPosts.length === 0 ? (
@@ -5096,12 +5346,12 @@ function CommunityView({ lang, user, db, appId, profile }) {
               ) : (
                 <div className="space-y-3">
                   {userPosts.map(post => {
-                    const categoryColors = {
+                    const categoryStyles = {
                       general: 'bg-gray-100 text-gray-700',
-                      problem: 'bg-red-100 text-red-700',
-                      advice: 'bg-blue-100 text-blue-700',
-                      success: 'bg-green-100 text-green-700',
-                      question: 'bg-purple-100 text-purple-700'
+                      problem: 'bg-rose-100 text-rose-700',
+                      advice: 'bg-sky-100 text-sky-700',
+                      success: 'bg-emerald-100 text-emerald-700',
+                      question: 'bg-violet-100 text-violet-700'
                     };
                     
                     return (
@@ -5137,7 +5387,7 @@ function CommunityView({ lang, user, db, appId, profile }) {
                             </div>
 
                             {/* Category */}
-                            <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] md:text-xs font-bold mb-1.5 ${categoryColors[post.category] || categoryColors.general}`}>
+                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mb-1.5 ${categoryStyles[post.category] || categoryStyles.general}`}>
                               {post.category === 'problem' ? (lang === 'en' ? 'Problem' : 'समस्या') :
                                post.category === 'advice' ? (lang === 'en' ? 'Advice' : 'सलाह') :
                                post.category === 'success' ? (lang === 'en' ? 'Success' : 'सफलता') :
@@ -5149,7 +5399,7 @@ function CommunityView({ lang, user, db, appId, profile }) {
                             <h3 className="font-bold text-sm md:text-base text-[var(--text-main)] mb-1 line-clamp-2">{post.title}</h3>
 
                             {/* Content */}
-                            <p className="text-[var(--text-muted)] text-xs md:text-sm mb-2 line-clamp-2">{post.content}</p>
+                            <p className="text-[var(--text-muted)] text-xs line-clamp-2 mb-2">{post.content}</p>
 
                             {/* Compact Actions */}
                             <div className="flex items-center gap-2 pt-2 border-t border-[var(--border)]">
@@ -5203,33 +5453,78 @@ function CommunityView({ lang, user, db, appId, profile }) {
                   <FileText className="text-[var(--primary)]" size={20} />
                   {lang === 'en' ? 'Financial Literacy Corner' : 'वित्तीय साक्षरता कोना'}
                 </h2>
-                <p className="text-xs md:text-sm text-[var(--text-muted)]">{lang === 'en' ? 'Expert tips on farming, savings, and government schemes' : 'खेती, बचत और सरकारी योजनाओं पर विशेषज्ञ सुझाव'}</p>
+              </div>
+
+              {/* Category Filters - Subtle */}
+              <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+                {[
+                  { id: 'all', label: lang === 'en' ? 'All' : 'सभी' },
+                  { id: 'loans', label: lang === 'en' ? 'Loans' : 'ऋण', match: ['Loans & Credit', 'Digital Banking'] },
+                  { id: 'security', label: lang === 'en' ? 'Security' : 'सुरक्षा', match: ['Security'] },
+                  { id: 'savings', label: lang === 'en' ? 'Savings' : 'बचत', match: ['Savings'] },
+                  { id: 'schemes', label: lang === 'en' ? 'Schemes' : 'योजनाएं', match: ['Insurance', 'Farming', 'Women Empowerment', 'Market Prices'] },
+                ].map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setArticleFilter(cat.id)}
+                    className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                      articleFilter === cat.id 
+                        ? 'bg-[var(--primary)] text-white' 
+                        : 'bg-[var(--bg-glass)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)]'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
               </div>
 
               <div className="space-y-3">
-                {blogPosts.map(post => (
+                {blogPosts
+                  .filter(post => {
+                    if (articleFilter === 'all') return true;
+                    const filterMatches = {
+                      loans: ['Loans & Credit', 'Digital Banking'],
+                      security: ['Security'],
+                      savings: ['Savings'],
+                      schemes: ['Insurance', 'Farming', 'Women Empowerment', 'Market Prices']
+                    };
+                    return filterMatches[articleFilter]?.includes(post.category.en);
+                  })
+                  .map(post => (
                   <article 
                     key={post.id} 
                     onClick={() => setSelectedPostId(post.id)}
-                    className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-[var(--primary)] active:scale-[0.99]"
+                    className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden shadow-lg hover:shadow-xl transition-all cursor-pointer hover:border-[var(--primary)]/50 active:scale-[0.99] group"
                   >
                     <div className="flex gap-3 p-3">
-                      {/* Compact Image */}
-                      <div className="w-20 h-20 md:w-28 md:h-28 flex-shrink-0 rounded-lg overflow-hidden">
+                      {/* Image */}
+                      <div className="w-20 h-20 md:w-28 md:h-28 flex-shrink-0 rounded-xl overflow-hidden">
                         <img 
                           src={post.image} 
                           alt={post.title}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       </div>
 
                       {/* Content */}
                       <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                         <div>
-                          <span className={`inline-block px-2 py-0.5 rounded text-[10px] md:text-xs font-bold mb-1.5 ${post.categoryColor}`}>
+                          {/* Category Badge - Simple */}
+                          <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mb-1.5 ${
+                            post.category.en === 'Loans & Credit' ? 'bg-emerald-100 text-emerald-700' :
+                            post.category.en === 'Security' ? 'bg-rose-100 text-rose-700' :
+                            post.category.en === 'Savings' ? 'bg-violet-100 text-violet-700' :
+                            'bg-amber-100 text-amber-700'
+                          }`}>
                             {lang === 'en' ? post.category.en : post.category.hi}
                           </span>
-                          <h3 className="font-bold text-sm md:text-base text-[var(--text-main)] mb-1 leading-snug line-clamp-2">{post.title}</h3>
+                          
+                          {/* Title */}
+                          <h3 className="font-bold text-sm md:text-base text-[var(--text-main)] mb-1 line-clamp-2 leading-snug">
+                            {post.title}
+                          </h3>
+                          
+                          {/* Content Preview */}
                           <p className="text-[var(--text-muted)] text-xs line-clamp-2 hidden sm:block">{post.content}</p>
                         </div>
 
@@ -5239,22 +5534,21 @@ function CommunityView({ lang, user, db, appId, profile }) {
                             <div className={`w-4 h-4 md:w-5 md:h-5 rounded-full ${post.author.color} flex items-center justify-center text-white text-[8px] md:text-[10px] font-bold`}>
                               {post.author.avatar}
                             </div>
-                            <span className="truncate max-w-[60px] md:max-w-none">{post.author.name}</span>
+                            <span>{post.author.name}</span>
                           </div>
-                          <span className="hidden sm:inline">{post.date}</span>
-                          <span className="flex items-center gap-0.5"><Clock size={10} /> {post.readTime}</span>
+                          <span>{post.date}</span>
+                          <span className="flex items-center gap-0.5"><Clock size={10} />{post.readTime}</span>
                         </div>
                       </div>
 
-                      {/* Compact Actions - Vertical on mobile */}
-                      <div className="flex flex-col gap-1 justify-center">
+                      {/* Action Buttons - Cleaner */}
+                      <div className="flex flex-col gap-2 justify-center">
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
                             handleVote(post.id, 1);
                           }}
-                          className={`p-1.5 md:p-2 rounded-lg transition-colors ${votes[post.id] === 1 ? 'bg-green-100 text-green-600' : 'hover:bg-[var(--bg-glass)] text-[var(--text-muted)]'}`}
-                          title={lang === 'en' ? 'Like' : 'पसंद करें'}
+                          className={`p-2 rounded-xl transition-all ${votes[post.id] === 1 ? 'bg-emerald-500 text-white' : 'bg-[var(--bg-glass)] hover:bg-emerald-500/20 text-[var(--text-muted)]'}`}
                         >
                           <ThumbsUp size={14} />
                         </button>
@@ -5263,8 +5557,7 @@ function CommunityView({ lang, user, db, appId, profile }) {
                             e.stopPropagation();
                             handleSave(post.id);
                           }}
-                          className={`p-1.5 md:p-2 rounded-lg transition-colors ${saved[post.id] ? 'bg-[var(--primary)]/20 text-[var(--primary)]' : 'hover:bg-[var(--bg-glass)] text-[var(--text-muted)]'}`}
-                          title={lang === 'en' ? 'Save' : 'सेव करें'}
+                          className={`p-2 rounded-xl transition-all ${saved[post.id] ? 'bg-[var(--primary)] text-white' : 'bg-[var(--bg-glass)] hover:bg-[var(--primary)]/20 text-[var(--text-muted)]'}`}
                         >
                           {saved[post.id] ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
                         </button>
@@ -5275,8 +5568,7 @@ function CommunityView({ lang, user, db, appId, profile }) {
                               navigator.share({ title: post.title, text: post.content.slice(0, 100) });
                             }
                           }}
-                          className="p-1.5 md:p-2 rounded-lg hover:bg-[var(--bg-glass)] text-[var(--text-muted)]"
-                          title={lang === 'en' ? 'Share' : 'शेयर करें'}
+                          className="p-2 rounded-xl bg-[var(--bg-glass)] hover:bg-sky-500/20 text-[var(--text-muted)] transition-all"
                         >
                           <Share2 size={14} />
                         </button>
