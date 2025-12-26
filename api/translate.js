@@ -1,9 +1,9 @@
 // Vercel Serverless Function for Google Translate
 // Deploy to Vercel and it works automatically!
 
-import translate from 'google-translate-api-x';
+const translate = require('google-translate-api-x');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -50,4 +50,4 @@ export default async function handler(req, res) {
       error: error.message || 'Translation failed',
     });
   }
-}
+};
