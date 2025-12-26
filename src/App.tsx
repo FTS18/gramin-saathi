@@ -757,24 +757,32 @@ export default function GraminSaathiOS() {
     const pathname = window.location.pathname.slice(1);
     const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'translator', 'community'];
     
-    // Handle legacy 'home' route - show landing page
-    if (pathname === 'home') {
-      setCurrentView('landing');
-      return;
-    }
-    
-    // Handle login/auth route - show auth view
-    if (pathname === 'login' || pathname === 'auth') {
-      setShowAuth(true);
-      return;
+    // If user is logged in, handle special routes
+    if (user) {
+      // Redirect from login/auth/home to dashboard if logged in
+      if (pathname === 'login' || pathname === 'auth' || pathname === 'home' || pathname === '') {
+        setCurrentView('dashboard');
+        window.history.replaceState(null, '', '/dashboard');
+        return;
+      }
+    } else {
+      // Not logged in
+      // Handle login/auth route - show auth view
+      if (pathname === 'login' || pathname === 'auth') {
+        setShowAuth(true);
+        return;
+      }
+      
+      // Handle 'home' or root route - show landing page
+      if (pathname === 'home' || pathname === '') {
+        setCurrentView('landing');
+        return;
+      }
     }
     
     // Restore view from URL if valid
     if (validViews.includes(pathname)) {
       setCurrentView(pathname);
-    } else if (pathname === '') {
-      // Root path - will be set based on login state
-      setCurrentView(user ? 'dashboard' : 'landing');
     }
   }, [user]);
 
