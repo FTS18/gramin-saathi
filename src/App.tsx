@@ -596,17 +596,26 @@ const startVoiceRecognition = (onResult, lang = 'en') => {
 window.startVoiceRecognition = startVoiceRecognition;
 
 /**
+ * Format number in Indian numeral system (e.g., 1,00,000 for lakhs)
+ */
+const formatIndianNumber = (num) => {
+  const n = Number(num);
+  if (isNaN(n)) return num;
+  return n.toLocaleString('en-IN');
+};
+
+/**
  * Generate dummy transactions for demo/new users
  * Creates realistic farming transactions over the past 30 days
  */
 const generateDummyTransactions = (lang = 'en') => {
   const incomeItems = lang === 'en' 
-    ? ['Sold wheat', 'Milk sale', 'Vegetable sale', 'Rice sold', 'Crop sale', 'Dairy income', 'Sold mangoes', 'Government subsidy', 'Farm labor payment']
-    : ['गेहूं बेचा', 'दूध बिक्री', 'सब्जी बिक्री', 'चावल बेचा', 'फसल बिक्री', 'डेयरी आय', 'आम बेचे', 'सरकारी सब्सिडी', 'खेत मजदूरी'];
+    ? ['Sold wheat', 'Milk sale', 'Vegetable sale', 'Rice sold', 'Crop sale', 'Dairy income', 'Sold mangoes', 'Government subsidy', 'Labor payment received']
+    : ['गेहूं बेचा', 'दूध बिक्री', 'सब्जी बिक्री', 'चावल बेचा', 'फसल बिक्री', 'डेयरी आय', 'आम बेचे', 'सरकारी सब्सिडी', 'मजदूरी आय'];
   
   const expenseItems = lang === 'en'
-    ? ['Seeds purchase', 'Fertilizer', 'Diesel for pump', 'Labor wages', 'Pesticides', 'Equipment repair', 'Electricity bill', 'Transport cost', 'Animal feed', 'Irrigation expense']
-    : ['बीज खरीदे', 'खाद', 'पंप डीज़ल', 'मजदूरी', 'कीटनाशक', 'उपकरण मरम्मत', 'बिजली बिल', 'परिवहन खर्च', 'पशु चारा', 'सिंचाई खर्च'];
+    ? ['Seeds purchase', 'Fertilizer', 'Diesel for pump', 'Labor wages paid', 'Pesticides', 'Equipment repair', 'Electricity bill', 'Transport cost', 'Animal feed', 'Irrigation expense', 'Farm labor payment']
+    : ['बीज खरीदे', 'खाद', 'पंप डीज़ल', 'मजदूरी दी', 'कीटनाशक', 'उपकरण मरम्मत', 'बिजली बिल', 'परिवहन खर्च', 'पशु चारा', 'सिंचाई खर्च', 'खेत मजदूरी'];
 
   const transactions = [];
   const today = new Date();
@@ -3082,7 +3091,7 @@ ${lang === 'en' ? 'Transactions' : 'लेनदेन'}: ${filteredTransactions
                </div>
                <div className="text-right flex-shrink-0">
                  <p className={`font-mono font-bold text-sm md:text-base ${tr.type === 'income' ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
-                   {tr.type === 'income' ? '+' : '-'}₹{tr.amount}
+                   {tr.type === 'income' ? '+' : '-'}₹{formatIndianNumber(tr.amount)}
                  </p>
                  <button onClick={() => deleteTrans(tr.id)} className="text-[10px] text-[var(--text-muted)] underline md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                    {t('delete')}
@@ -3534,14 +3543,23 @@ function SaathiView({ user, profile, db, appId, t, lang }) {
         }
       }
 
-      const systemInstruction = `You are Gramin Saathi, a helpful, village-friendly financial and agricultural assistant. 
-      User: ${profile?.name}, Village: ${profile?.village}, Crop: ${profile?.crop}.${weatherContext}
-      Language: ${lang === 'en' ? 'English (Simple)' : 'Hindi (Simple)'}.
-      Capabilities:
-      1. Crop Doctor: If user sends an image, diagnose crop diseases or identify objects.
-      2. Finance: Short, metaphor-rich advice on saving/schemes.
-      3. Weather-Aware: Consider current weather in your farming advice.
-      4. Tone: Respectful ("Ji"), practical, encouraging.`;
+      const systemInstruction = `You are Gramin Saathi, a helpful farming assistant for Indian farmers.
+User: ${profile?.name || 'Farmer'} Ji, Village: ${profile?.village || ''}, Crop: ${profile?.crop || ''}.${weatherContext}
+
+IMPORTANT RULES:
+1. Reply ONLY in ${lang === 'en' ? 'English' : 'Hindi'} - NEVER mix languages
+2. Answer BRIEFLY - short and to the point
+3. Use PLAIN TEXT only - NO asterisks (*), NO hashtags (#), NO markdown
+4. Use simple bullet format with • symbol
+5. Address user as "Ji" respectfully
+
+Good response format:
+Namaste Ji!
+• First point here
+• Second point here
+Tip: One simple action.
+
+Bad (NEVER do this): **Bold text** or ### Headers or long paragraphs.`;
 
       // Payload Construction
       const contentParts = [];
@@ -3589,42 +3607,60 @@ function SaathiView({ user, profile, db, appId, t, lang }) {
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
     
+    // Clean text - remove markdown and special characters
+    const cleanText = text
+      .replace(/\*\*/g, '')
+      .replace(/\*/g, '')
+      .replace(/###/g, '')
+      .replace(/##/g, '')
+      .replace(/#/g, '')
+      .replace(/\n+/g, '. ')
+      .trim();
+    
     setAudioPlaying(index);
     
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(cleanText);
     
     // Map language codes to speech synthesis languages
     const langMap = {
       'hi': 'hi-IN',
-      'pa': 'pa-IN', // Punjabi
-      'te': 'te-IN', // Telugu
-      'ta': 'ta-IN', // Tamil
-      'kn': 'kn-IN', // Kannada
-      'ml': 'ml-IN', // Malayalam
-      'gu': 'gu-IN', // Gujarati
-      'mr': 'mr-IN', // Marathi
-      'bn': 'bn-IN', // Bengali
+      'pa': 'pa-IN',
+      'te': 'te-IN',
+      'ta': 'ta-IN',
+      'kn': 'kn-IN',
+      'ml': 'ml-IN',
+      'gu': 'gu-IN',
+      'mr': 'mr-IN',
+      'bn': 'bn-IN',
       'en': 'en-IN'
     };
     
     utterance.lang = langMap[lang] || 'en-IN';
-    utterance.rate = 0.85; // Slower for better clarity in regional languages
+    utterance.rate = 0.9;
     utterance.pitch = 1;
     utterance.volume = 1;
     
-    // Try to get a voice for the language
-    const voices = window.speechSynthesis.getVoices();
-    const preferredVoice = voices.find(v => 
-      v.lang.startsWith(langMap[lang]?.split('-')[0])
-    );
-    if (preferredVoice) {
-      utterance.voice = preferredVoice;
-    }
+    // Load voices and try to find a matching one
+    const speakWithVoice = () => {
+      const voices = window.speechSynthesis.getVoices();
+      const targetLang = langMap[lang] || 'en-IN';
+      const preferredVoice = voices.find(v => v.lang === targetLang) || 
+                             voices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
+      }
+      window.speechSynthesis.speak(utterance);
+    };
     
     utterance.onend = () => setAudioPlaying(null);
     utterance.onerror = () => setAudioPlaying(null);
     
-    window.speechSynthesis.speak(utterance);
+    // Chrome requires voices to be loaded
+    if (window.speechSynthesis.getVoices().length === 0) {
+      window.speechSynthesis.onvoiceschanged = speakWithVoice;
+    } else {
+      speakWithVoice();
+    }
   };
 
   // Mobile history panel state
@@ -3768,7 +3804,7 @@ function SaathiView({ user, profile, db, appId, t, lang }) {
                  ? 'bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] text-white rounded-br-none shadow-[var(--primary)]/20' 
                  : 'bg-[var(--bg-input)] text-[var(--text-main)] border border-[var(--border)] rounded-bl-none'
                }`}>
-                 {m.text}
+                 <span className="whitespace-pre-line">{m.text}</span>
                  
                  {/* TTS Button */}
                  {m.role === 'model' && (
