@@ -316,8 +316,17 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
               {/* CTAs */}
               <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-4 mb-6 sm:mb-10 justify-center lg:justify-start">
                 <button 
-                  onClick={onGetStarted}
-                  className="group px-5 py-2.5 sm:px-6 sm:py-3 bg-[#c8e038] text-[#0a1f1a] font-semibold rounded-xl hover:bg-[#d4ea4d] transition-all flex items-center justify-center gap-2"
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onGetStarted();
+                  }}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    onGetStarted();
+                  }}
+                  className="group px-5 py-2.5 sm:px-6 sm:py-3 bg-[#c8e038] text-[#0a1f1a] font-semibold rounded-xl hover:bg-[#d4ea4d] active:scale-95 transition-all flex items-center justify-center gap-2 select-none touch-manipulation"
                 >
                   {lang === 'en' ? 'Start Free' : 'मुफ्त शुरू करें'}
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
@@ -326,7 +335,7 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
                   href={DEMO_VIDEO_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-5 py-2.5 sm:px-6 sm:py-3 border border-white/20 text-white font-medium rounded-xl hover:border-white/40 transition-all flex items-center justify-center gap-2"
+                  className="px-5 py-2.5 sm:px-6 sm:py-3 border border-white/20 text-white font-medium rounded-xl hover:border-white/40 active:scale-95 transition-all flex items-center justify-center gap-2 select-none touch-manipulation"
                 >
                   <Play className="w-4 h-4" />
                   {lang === 'en' ? 'Watch Demo (v1)' : 'डेमो देखें (v1)'}
@@ -428,17 +437,26 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
           {/* Grid - Full width on mobile */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
             {features.map((f, i) => (
-              <div 
-                key={i} 
-                onClick={() => onFeatureClick?.(f.id)}
-                className="p-4 sm:p-6 bg-[#0a1f1a] rounded-xl sm:rounded-2xl border border-white/10 hover:border-[#c8e038]/50 hover:bg-[#0a1f1a]/80 transition-all duration-300 cursor-pointer group"
+              <button 
+                key={i}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onFeatureClick?.(f.id);
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  onFeatureClick?.(f.id);
+                }}
+                className="p-4 sm:p-6 bg-[#0a1f1a] rounded-xl sm:rounded-2xl border border-white/10 hover:border-[#c8e038]/50 hover:bg-[#0a1f1a]/80 active:scale-[0.98] transition-all duration-300 cursor-pointer group text-left select-none touch-manipulation"
               >
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#c8e038]/20 flex items-center justify-center mb-3 sm:mb-4 group-hover:bg-[#c8e038]/30 transition-colors">
                   <f.Icon className="w-5 h-5 sm:w-6 sm:h-6 text-[#c8e038]" />
                 </div>
                 <h3 className="text-sm sm:text-base font-semibold text-white mb-1 sm:mb-2">{f.title}</h3>
                 <p className="text-xs sm:text-sm text-white/60 leading-relaxed">{f.desc}</p>
-              </div>
+              </button>
             ))}
           </div>
         </div>
