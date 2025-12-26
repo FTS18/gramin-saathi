@@ -37,6 +37,17 @@ interface LandingPageProps {
 export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureClick, onLogoClick }: LandingPageProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const isProcessingRef = React.useRef(false);
+
+  // Prevent double-clicks/taps
+  const handleAction = (action: () => void) => {
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
+    action();
+    setTimeout(() => {
+      isProcessingRef.current = false;
+    }, 500);
+  };
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -317,16 +328,9 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
               <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-4 mb-6 sm:mb-10 justify-center lg:justify-start">
                 <button 
                   type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onGetStarted();
-                  }}
-                  onTouchEnd={(e) => {
-                    e.preventDefault();
-                    onGetStarted();
-                  }}
-                  className="group px-5 py-2.5 sm:px-6 sm:py-3 bg-[#c8e038] text-[#0a1f1a] font-semibold rounded-xl hover:bg-[#d4ea4d] active:scale-95 transition-all flex items-center justify-center gap-2 select-none touch-manipulation"
+                  onClick={() => handleAction(onGetStarted)}
+                  className="group px-5 py-2.5 sm:px-6 sm:py-3 bg-[#c8e038] text-[#0a1f1a] font-semibold rounded-xl hover:bg-[#d4ea4d] active:scale-95 transition-all flex items-center justify-center gap-2 select-none cursor-pointer"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
                   {lang === 'en' ? 'Start Free' : 'मुफ्त शुरू करें'}
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
@@ -335,7 +339,8 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
                   href={DEMO_VIDEO_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-5 py-2.5 sm:px-6 sm:py-3 border border-white/20 text-white font-medium rounded-xl hover:border-white/40 active:scale-95 transition-all flex items-center justify-center gap-2 select-none touch-manipulation"
+                  className="px-5 py-2.5 sm:px-6 sm:py-3 border border-white/20 text-white font-medium rounded-xl hover:border-white/40 active:scale-95 transition-all flex items-center justify-center gap-2 select-none cursor-pointer"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
                   <Play className="w-4 h-4" />
                   {lang === 'en' ? 'Watch Demo (v1)' : 'डेमो देखें (v1)'}
@@ -440,16 +445,9 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
               <button 
                 key={i}
                 type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onFeatureClick?.(f.id);
-                }}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  onFeatureClick?.(f.id);
-                }}
-                className="p-4 sm:p-6 bg-[#0a1f1a] rounded-xl sm:rounded-2xl border border-white/10 hover:border-[#c8e038]/50 hover:bg-[#0a1f1a]/80 active:scale-[0.98] transition-all duration-300 cursor-pointer group text-left select-none touch-manipulation"
+                onClick={() => handleAction(() => onFeatureClick?.(f.id))}
+                className="p-4 sm:p-6 bg-[#0a1f1a] rounded-xl sm:rounded-2xl border border-white/10 hover:border-[#c8e038]/50 hover:bg-[#0a1f1a]/80 active:scale-[0.98] transition-all duration-300 cursor-pointer group text-left select-none"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#c8e038]/20 flex items-center justify-center mb-3 sm:mb-4 group-hover:bg-[#c8e038]/30 transition-colors">
                   <f.Icon className="w-5 h-5 sm:w-6 sm:h-6 text-[#c8e038]" />
