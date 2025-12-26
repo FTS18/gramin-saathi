@@ -704,7 +704,7 @@ export default function GraminSaathiOS() {
   const getInitialView = () => {
     const pathname = window.location.pathname.slice(1); // Remove leading /
     // Support both 'home' (legacy) and 'dashboard' routes
-    if (pathname === 'home') return 'dashboard';
+    if (pathname === 'home') return 'landing';
     const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'translator', 'community'];
     if (validViews.includes(pathname)) return pathname;
     // If user is logged in and on root, go to dashboard, otherwise onboarding
@@ -759,8 +759,7 @@ export default function GraminSaathiOS() {
     
     // Handle legacy 'home' route - redirect to 'dashboard'
     if (pathname === 'home') {
-      window.history.replaceState(null, '', '/dashboard');
-      setCurrentView('dashboard');
+      setCurrentView('landing');
       return;
     }
     
@@ -778,7 +777,9 @@ export default function GraminSaathiOS() {
     if (currentView !== 'onboarding' && currentView !== 'landing') {
       window.history.pushState(null, '', `/${currentView}`);
     } else if (currentView === 'landing') {
-      window.history.pushState(null, '', `/`);
+      if (window.location.pathname !== '/home') {
+        window.history.pushState(null, '', `/`);
+      }
     }
   }, [currentView]);
   
@@ -989,14 +990,28 @@ export default function GraminSaathiOS() {
   );
 
   // Show Landing Page or Auth View for non-logged-in users (full width, no constraints)
-  if (!user && !showAuth) {
+  if ((!user && !showAuth) || currentView === 'landing') {
     return (
       <>
         <style>{themeStyles}</style>
         <LandingPage 
-          onGetStarted={() => setShowAuth(true)} 
+          onGetStarted={() => user ? handleViewChange('dashboard') : setShowAuth(true)} 
           lang={lang} 
           toggleLang={toggleLang} 
+          onFeatureClick={(id) => {
+             if (user) {
+               handleViewChange(id);
+             } else {
+               setShowAuth(true);
+             }
+          }}
+          onLogoClick={() => {
+             if (user) {
+               handleViewChange('dashboard');
+             } else {
+               window.scrollTo({ top: 0, behavior: 'smooth' });
+             }
+          }}
         />
       </>
     );
@@ -1070,7 +1085,10 @@ export default function GraminSaathiOS() {
               : 'w-0 -translate-x-full'
           } md:relative md:w-72 md:h-full md:translate-x-0 md:m-4 md:rounded-3xl md:shadow-none`}>
             <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
-            <div className="p-6 flex items-center gap-3 border-b border-[var(--border)] bg-white/5 backdrop-blur-sm">
+            <div 
+              onClick={() => handleViewChange('dashboard')} 
+              className="p-6 flex items-center gap-3 border-b border-[var(--border)] bg-white/5 backdrop-blur-sm cursor-pointer hover:bg-white/10 transition-colors"
+            >
               <img src="/favicon.svg" alt="Gramin Saathi" className="w-10 h-10 rounded-xl shadow-lg" />
               <h1 className="font-bold text-xl tracking-tight text-[var(--text-main)]">
                 {lang === 'en' ? 'Gramin' : 'ग्रामीण'} <span className="text-[var(--primary)]">Saathi</span>
@@ -1127,10 +1145,10 @@ export default function GraminSaathiOS() {
                >
                  <Menu size={20} />
                </button>
-               <div className="flex items-center gap-2">
+               <button onClick={() => handleViewChange('dashboard')} className="flex items-center gap-2">
                  <img src="/favicon.svg" alt="Gramin Saathi" className="w-8 h-8 rounded-lg" />
                  <span className="font-bold text-lg text-[var(--text-main)]">{t('app_name')}</span>
-               </div>
+               </button>
                <div className="flex items-center gap-3">
                  <button onClick={toggleLang} className="text-[var(--text-main)] font-bold text-xs bg-[var(--bg-input)] px-2 py-1 rounded-lg border border-[var(--border)]">
                     {lang === 'en' ? 'HI' : 'EN'}
