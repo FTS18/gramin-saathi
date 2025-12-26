@@ -196,23 +196,11 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
 
   return (
     <div className="min-h-screen bg-[#0a1f1a] text-white overflow-x-hidden">
-      {/* Import Monument Extended font from public folder */}
+      {/* Import Space Grotesk font */}
       <style>{`
-        @font-face {
-          font-family: 'Monument Extended';
-          src: url('/MonumentExtended-Regular.otf') format('opentype');
-          font-weight: 400;
-          font-style: normal;
-          font-display: swap;
-        }
-        @font-face {
-          font-family: 'Monument Extended';
-          src: url('/MonumentExtended-Ultrabold.otf') format('opentype');
-          font-weight: 800;
-          font-style: normal;
-          font-display: swap;
-        }
-        .heading-font { font-family: 'Monument Extended', sans-serif; letter-spacing: -0.01em; }
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+        .heading-font { font-family: 'Space Grotesk', system-ui, sans-serif; }
+        body { font-family: 'Space Grotesk', system-ui, sans-serif; }
       `}</style>
       
       {/* ===== NAVBAR ===== */}
@@ -225,7 +213,7 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
               className="flex items-center gap-2 sm:gap-3 hover:scale-[1.02] active:scale-95 transition-all outline-none focus-visible:ring-2 focus-visible:ring-[#c8e038] rounded-xl p-1"
             >
               <img src="/favicon.svg" alt="Gramin Saathi" className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl shadow-lg" />
-              <span className="text-lg sm:text-xl font-bold tracking-tight heading-font">
+              <span className="text-lg sm:text-xl font-bold tracking-tight">
                 Gramin <span className="text-[#c8e038]">Saathi</span>
               </span>
             </button>
@@ -285,7 +273,7 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
       </nav>
 
       {/* ===== HERO SECTION ===== */}
-      <section className="relative min-h-screen sm:min-h-[90vh] flex items-center pt-14 sm:pt-16">
+      <section className="relative min-h-[85vh] lg:min-h-[90vh] flex items-center pt-14 sm:pt-16">
         {/* Background */}
         <div className="absolute inset-0">
           <img 
@@ -296,20 +284,20 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
           <div className="absolute inset-0 bg-gradient-to-b sm:bg-gradient-to-r from-[#0a1f1a] via-[#0a1f1a]/95 to-[#0a1f1a]/80 sm:to-[#0a1f1a]/70" />
         </div>
 
-        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-20">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-20">
+          <div className="grid lg:grid-cols-2 gap-6 lg:gap-16 items-center">
             {/* Left - Text Content */}
             <div className="text-center lg:text-left">
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#c8e038]/15 border border-[#c8e038]/30 rounded-full mb-4 sm:mb-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#c8e038]/15 border border-[#c8e038]/30 rounded-full mb-3 sm:mb-6">
                 <span className="w-1.5 h-1.5 bg-[#c8e038] rounded-full animate-pulse" />
-                <span className="text-xs text-[#c8e038] font-medium">
+                <span className="text-[10px] sm:text-xs text-[#c8e038] font-medium">
                   {lang === 'en' ? 'Built for Indian Farmers' : 'भारतीय किसानों के लिए बनाया'}
                 </span>
               </div>
 
               {/* Heading */}
-              <h1 className="heading-font text-3xl sm:text-4xl lg:text-5xl font-bold leading-[1.1] mb-4 sm:mb-5">
+              <h1 className="heading-font text-2xl sm:text-4xl lg:text-5xl font-bold leading-[1.15] mb-3 sm:mb-5">
                 {lang === 'en' ? (
                   <>Your Digital <span className="text-[#c8e038]">Farming</span> Companion</>
                 ) : (
@@ -318,7 +306,7 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
               </h1>
 
               {/* Subheading */}
-              <p className="text-sm sm:text-base text-white/60 mb-6 sm:mb-8 leading-relaxed max-w-md mx-auto lg:mx-0">
+              <p className="text-xs sm:text-base text-white/60 mb-5 sm:mb-8 leading-relaxed max-w-md mx-auto lg:mx-0">
                 {lang === 'en' 
                   ? 'Track finances by voice, access schemes, get AI crop advice, and check mandi prices—all in your language.' 
                   : 'आवाज से हिसाब रखें, योजनाएं पाएं, AI फसल सलाह लें, मंडी भाव देखें—अपनी भाषा में।'
@@ -326,10 +314,10 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
               </p>
 
               {/* CTAs */}
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-8 sm:mb-10 justify-center lg:justify-start">
+              <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-4 mb-6 sm:mb-10 justify-center lg:justify-start">
                 <button 
                   onClick={onGetStarted}
-                  className="group px-6 py-3 bg-[#c8e038] text-[#0a1f1a] font-semibold rounded-xl hover:bg-[#d4ea4d] transition-all flex items-center justify-center gap-2"
+                  className="group px-5 py-2.5 sm:px-6 sm:py-3 bg-[#c8e038] text-[#0a1f1a] font-semibold rounded-xl hover:bg-[#d4ea4d] transition-all flex items-center justify-center gap-2"
                 >
                   {lang === 'en' ? 'Start Free' : 'मुफ्त शुरू करें'}
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
@@ -338,19 +326,19 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
                   href={DEMO_VIDEO_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-6 py-3 border border-white/20 text-white font-medium rounded-xl hover:border-white/40 transition-all flex items-center justify-center gap-2"
+                  className="px-5 py-2.5 sm:px-6 sm:py-3 border border-white/20 text-white font-medium rounded-xl hover:border-white/40 transition-all flex items-center justify-center gap-2"
                 >
                   <Play className="w-4 h-4" />
                   {lang === 'en' ? 'Watch Demo (v1)' : 'डेमो देखें (v1)'}
                 </a>
               </div>
 
-              {/* Quick Stats - Mobile horizontal scroll */}
-              <div className="flex gap-6 sm:gap-8 justify-center lg:justify-start overflow-x-auto pb-2">
+              {/* Quick Stats */}
+              <div className="flex gap-4 sm:gap-8 justify-center lg:justify-start">
                 {stats.map((stat, i) => (
-                  <div key={i} className="flex-shrink-0 text-center lg:text-left">
-                    <p className="text-xl sm:text-2xl font-bold text-[#c8e038]">{stat.value}</p>
-                    <p className="text-xs text-white/50 whitespace-nowrap">{stat.label}</p>
+                  <div key={i} className="text-center lg:text-left">
+                    <p className="text-lg sm:text-2xl font-bold text-[#c8e038]">{stat.value}</p>
+                    <p className="text-[10px] sm:text-xs text-white/50 whitespace-nowrap">{stat.label}</p>
                   </div>
                 ))}
               </div>
@@ -419,37 +407,37 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
         </div>
 
         {/* Scroll Indicator */}
-        <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2">
+        <div className="absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2">
           <ChevronDown className="w-5 h-5 text-white/40 animate-bounce" />
         </div>
       </section>
 
       {/* ===== FEATURES ===== */}
-      <section id="features" className="py-12 sm:py-20 bg-[#f8f6f0]">
+      <section id="features" className="py-12 sm:py-20 bg-[#0d2922]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           {/* Header */}
           <div className="text-center mb-8 sm:mb-14">
-            <p className="text-xs uppercase tracking-widest text-[#22c55e] font-medium mb-2 sm:mb-3">
+            <p className="text-xs uppercase tracking-widest text-[#c8e038] font-medium mb-2 sm:mb-3">
               {lang === 'en' ? 'Features' : 'विशेषताएं'}
             </p>
-            <h2 className="heading-font text-xl sm:text-2xl lg:text-3xl font-bold text-[#0a1f1a]">
+            <h2 className="heading-font text-xl sm:text-2xl lg:text-3xl font-bold text-white">
               {lang === 'en' ? 'Everything You Need to Farm Smarter' : 'स्मार्ट खेती के लिए सब कुछ'}
             </h2>
           </div>
 
-          {/* Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
+          {/* Grid - Full width on mobile */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
             {features.map((f, i) => (
               <div 
                 key={i} 
                 onClick={() => onFeatureClick?.(f.id)}
-                className="p-4 sm:p-6 bg-white rounded-xl sm:rounded-2xl border border-gray-100 hover:border-[#c8e038]/50 hover:shadow-lg transition-all duration-300 cursor-pointer group"
+                className="p-4 sm:p-6 bg-[#0a1f1a] rounded-xl sm:rounded-2xl border border-white/10 hover:border-[#c8e038]/50 hover:bg-[#0a1f1a]/80 transition-all duration-300 cursor-pointer group"
               >
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#c8e038]/10 flex items-center justify-center mb-3 sm:mb-4 group-hover:bg-[#c8e038]/20 transition-colors">
-                  <f.Icon className="w-5 h-5 sm:w-6 sm:h-6 text-[#22c55e]" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#c8e038]/20 flex items-center justify-center mb-3 sm:mb-4 group-hover:bg-[#c8e038]/30 transition-colors">
+                  <f.Icon className="w-5 h-5 sm:w-6 sm:h-6 text-[#c8e038]" />
                 </div>
-                <h3 className="text-sm sm:text-base font-medium text-[#0a1f1a] mb-1 sm:mb-2">{f.title}</h3>
-                <p className="text-xs sm:text-sm text-gray-500 leading-relaxed line-clamp-2 sm:line-clamp-none">{f.desc}</p>
+                <h3 className="text-sm sm:text-base font-semibold text-white mb-1 sm:mb-2">{f.title}</h3>
+                <p className="text-xs sm:text-sm text-white/60 leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
@@ -457,27 +445,27 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
       </section>
 
       {/* ===== HOW IT WORKS ===== */}
-      <section className="py-12 sm:py-20 bg-[#0d2922]">
+      <section className="py-12 sm:py-20 bg-[#f8f6f0]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-center">
             {/* Image */}
             <div className="relative order-2 lg:order-1">
-              <div className="aspect-[4/3] rounded-xl sm:rounded-2xl overflow-hidden bg-[#1a3d33]">
+              <div className="aspect-[4/3] rounded-xl sm:rounded-2xl overflow-hidden bg-gray-100">
                 <img 
                   src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&q=80"
                   alt="Person using smartphone"
-                  className="w-full h-full object-cover opacity-90"
+                  className="w-full h-full object-cover"
                 />
               </div>
               {/* Floating Card */}
-              <div className="absolute -bottom-3 -right-3 sm:-bottom-4 sm:-right-4 bg-white p-3 sm:p-4 rounded-xl shadow-xl max-w-[150px] sm:max-w-[180px]">
+              <div className="absolute -bottom-3 -right-3 sm:-bottom-4 sm:-right-4 bg-[#0d2922] p-3 sm:p-4 rounded-xl shadow-xl max-w-[150px] sm:max-w-[180px]">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-full bg-[#c8e038] flex items-center justify-center">
                     <Mic className="w-4 h-4 text-[#0a1f1a]" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-[#0a1f1a]">{lang === 'en' ? 'Voice Entry' : 'आवाज से'}</p>
-                    <p className="text-[10px] text-gray-500">{lang === 'en' ? '₹500 added' : '₹500 जोड़ा'}</p>
+                    <p className="text-xs font-semibold text-white">{lang === 'en' ? 'Voice Entry' : 'आवाज से'}</p>
+                    <p className="text-[10px] text-white/60">{lang === 'en' ? '₹500 added' : '₹500 जोड़ा'}</p>
                   </div>
                 </div>
               </div>
@@ -485,13 +473,13 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
 
             {/* Content */}
             <div className="order-1 lg:order-2 text-center lg:text-left">
-              <p className="text-xs uppercase tracking-widest text-[#c8e038] font-medium mb-2 sm:mb-3">
+              <p className="text-xs uppercase tracking-widest text-[#22c55e] font-medium mb-2 sm:mb-3">
                 {lang === 'en' ? 'Easy to Use' : 'उपयोग में आसान'}
               </p>
-              <h2 className="heading-font text-xl sm:text-2xl lg:text-3xl font-bold mb-4 sm:mb-6">
+              <h2 className="heading-font text-xl sm:text-2xl lg:text-3xl font-bold text-[#0a1f1a] mb-4 sm:mb-6">
                 {lang === 'en' ? 'Simple Enough for Everyone' : 'सभी के लिए आसान'}
               </h2>
-              <p className="text-sm sm:text-base text-white/60 mb-6 sm:mb-8 leading-relaxed max-w-md mx-auto lg:mx-0">
+              <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8 leading-relaxed max-w-md mx-auto lg:mx-0">
                 {lang === 'en' 
                   ? 'No complicated forms. Just speak in your language and the app does the rest. Works even without internet connection.' 
                   : 'कोई जटिल फॉर्म नहीं। बस अपनी भाषा में बोलें। इंटरनेट के बिना भी काम करता है।'
@@ -505,9 +493,9 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
                   { Icon: Shield, text: lang === 'en' ? 'Your data stays private' : 'आपका डेटा सुरक्षित' },
                   { Icon: IndianRupee, text: lang === 'en' ? 'Completely free' : 'पूरी तरह मुफ्त' }
                 ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 sm:gap-3 p-3 bg-white/5 rounded-xl">
-                    <item.Icon className="w-4 h-4 text-[#c8e038] flex-shrink-0" />
-                    <span className="text-xs sm:text-sm text-white/70">{item.text}</span>
+                  <div key={i} className="flex items-center gap-2 sm:gap-3 p-3 bg-[#0d2922]/10 rounded-xl border border-[#0d2922]/10">
+                    <item.Icon className="w-4 h-4 text-[#22c55e] flex-shrink-0" />
+                    <span className="text-xs sm:text-sm text-[#0a1f1a]">{item.text}</span>
                   </div>
                 ))}
               </div>
