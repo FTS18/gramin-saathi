@@ -19,11 +19,16 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks: {
-          'vendor': ['react', 'react-dom', 'react-router-dom'],
-          'firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/analytics'],
-          'ui': ['lucide-react', 'recharts', 'date-fns'],
-        }
-      }
-    }
-  }
+          vendor: ["react", "react-dom", "react-router-dom"],
+          firebase: [
+            "firebase/app",
+            "firebase/auth",
+            "firebase/firestore",
+            "firebase/analytics",
+          ],
+          ui: ["lucide-react", "recharts", "date-fns"],
+        },
+      },
+    },
+  },
 }));

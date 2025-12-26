@@ -207,35 +207,35 @@ const themeStyles = `
   body.theme-light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
   body.theme-light ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-  /* Dark Theme (OLED Black) */
+  /* Dark Theme (OLED Black with Green/Blue) */
   body.theme-dark {
     --bg-main: #000000;
     --bg-glass: #0a0a0a;
     --bg-card: #121212;
-    --bg-card-hover: rgba(168, 85, 247, 0.15);
+    --bg-card-hover: rgba(34, 197, 94, 0.15);
     --bg-input: #1a1a1a;
     
-    --primary: #a855f7;
-    --primary-glow: rgba(168, 85, 247, 0.4);
-    --secondary: #ec4899;
-    --accent: #f43f5e;
+    --primary: #22c55e;
+    --primary-glow: rgba(34, 197, 94, 0.4);
+    --secondary: #0ea5e9;
+    --accent: #3b82f6;
     
     --text-main: #fafafa;
     --text-muted: #a1a1aa;
-    --border: rgba(168, 85, 247, 0.25);
+    --border: rgba(34, 197, 94, 0.25);
     
     --success: #22c55e;
     --danger: #ef4444;
     
     --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
-    --shadow-neon: 0 0 15px rgba(168, 85, 247, 0.4), 0 0 30px rgba(168, 85, 247, 0.2);
+    --shadow-neon: 0 0 15px rgba(34, 197, 94, 0.4), 0 0 30px rgba(34, 197, 94, 0.2);
   }
   
   body.theme-dark {
     background-color: #000000;
     background-image: 
-      radial-gradient(circle at 15% 50%, rgba(168, 85, 247, 0.1), transparent 25%),
-      radial-gradient(circle at 85% 30%, rgba(236, 72, 153, 0.1), transparent 25%);
+      radial-gradient(circle at 15% 50%, rgba(34, 197, 94, 0.1), transparent 25%),
+      radial-gradient(circle at 85% 30%, rgba(14, 165, 233, 0.1), transparent 25%);
   }
 
   /* Route Progress Bar */
@@ -5429,9 +5429,27 @@ MSP दरें PM-KISAN ऐप पर देखें या 1800-180-1551 प
                   </div>
                 </div>
 
-                {/* Content */}
+                {/* Content - Expandable */}
                 <div className="prose prose-invert max-w-none mb-8">
-                  <p className="text-lg text-[var(--text-muted)] leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                  <p className="text-base md:text-lg text-[var(--text-muted)] leading-relaxed whitespace-pre-wrap">
+                    {post.content.length > 500 ? (
+                      <>
+                        {post.content.slice(0, 500)}...
+                        <button 
+                          onClick={() => {
+                            const el = document.getElementById(`full-content-${post.id}`);
+                            if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+                          }}
+                          className="text-[var(--primary)] font-medium ml-2 hover:underline"
+                        >
+                          {lang === 'en' ? 'Read more' : 'और पढ़ें'}
+                        </button>
+                        <span id={`full-content-${post.id}`} style={{display: 'none'}}>
+                          {post.content.slice(500)}
+                        </span>
+                      </>
+                    ) : post.content}
+                  </p>
                 </div>
 
                 {/* Action Buttons */}
@@ -5776,8 +5794,10 @@ MSP दरें PM-KISAN ऐप पर देखें या 1800-180-1551 प
                             {post.title}
                           </h3>
                           
-                          {/* Content Preview */}
-                          <p className="text-[var(--text-muted)] text-xs line-clamp-2 hidden sm:block">{post.content}</p>
+                          {/* Content Preview - Limited to 120 chars */}
+                          <p className="text-[var(--text-muted)] text-xs line-clamp-2 hidden sm:block">
+                            {post.content.length > 120 ? post.content.slice(0, 120) + '...' : post.content}
+                          </p>
                         </div>
 
                         {/* Compact Meta */}
