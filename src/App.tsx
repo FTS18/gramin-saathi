@@ -766,32 +766,49 @@ export default function GraminSaathiOS() {
     const pathname = window.location.pathname.slice(1);
     const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'translator', 'community'];
     
-    // If user is logged in, handle special routes
-    if (user) {
-      // Redirect from login/auth/home to dashboard if logged in
-      if (pathname === 'login' || pathname === 'auth' || pathname === 'home' || pathname === '') {
+    // ALWAYS redirect /home to /dashboard (legacy route)
+    if (pathname === 'home') {
+      window.history.replaceState(null, '', '/dashboard');
+      if (user) {
+        setCurrentView('dashboard');
+      } else {
+        // Not logged in - redirect to dashboard will show auth
+        setShowAuth(true);
+      }
+      return;
+    }
+    
+    // Handle login/auth routes
+    if (pathname === 'login' || pathname === 'auth') {
+      if (user) {
+        // Already logged in, go to dashboard
         setCurrentView('dashboard');
         window.history.replaceState(null, '', '/dashboard');
-        return;
-      }
-    } else {
-      // Not logged in
-      // Handle login/auth route - show auth view
-      if (pathname === 'login' || pathname === 'auth') {
+      } else {
         setShowAuth(true);
-        return;
       }
-      
-      // Handle 'home' or root route - show landing page
-      if (pathname === 'home' || pathname === '') {
+      return;
+    }
+    
+    // Handle root path /
+    if (pathname === '') {
+      if (user) {
+        setCurrentView('dashboard');
+        window.history.replaceState(null, '', '/dashboard');
+      } else {
         setCurrentView('landing');
-        return;
       }
+      return;
     }
     
     // Restore view from URL if valid
     if (validViews.includes(pathname)) {
-      setCurrentView(pathname);
+      if (user) {
+        setCurrentView(pathname);
+      } else {
+        // Not logged in, trying to access protected route
+        setShowAuth(true);
+      }
     }
   }, [user]);
 
@@ -800,9 +817,7 @@ export default function GraminSaathiOS() {
     if (currentView !== 'onboarding' && currentView !== 'landing') {
       window.history.pushState(null, '', `/${currentView}`);
     } else if (currentView === 'landing') {
-      if (window.location.pathname !== '/home') {
-        window.history.pushState(null, '', `/`);
-      }
+      window.history.pushState(null, '', `/`);
     }
   }, [currentView]);
   
@@ -810,16 +825,18 @@ export default function GraminSaathiOS() {
   useEffect(() => {
     const handlePopState = () => {
       const pathname = window.location.pathname.slice(1);
-      // Support both 'home' (legacy) and 'dashboard' routes
+      
+      // /home always goes to dashboard
       if (pathname === 'home') {
-        setCurrentView('dashboard');
+        window.history.replaceState(null, '', '/dashboard');
+        setCurrentView(user ? 'dashboard' : 'landing');
         return;
       }
+      
       const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'translator', 'community'];
       if (validViews.includes(pathname)) {
         setCurrentView(pathname);
-      } else if (pathname === '') {
-        // Root path - show landing if not logged in
+      } else if (pathname === '' || pathname === 'login' || pathname === 'auth') {
         setCurrentView(user ? 'dashboard' : 'landing');
       }
     };
