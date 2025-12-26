@@ -3,11 +3,48 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   User, MapPin, Briefcase, Phone, Calendar, 
-  Wheat, Wallet, Award, ChevronRight 
+  Wheat, Wallet, Award, ChevronRight, Trophy 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useState, useEffect } from 'react';
+import { db, auth } from '@/lib/mockFirebase';
+import { collection, query, onSnapshot } from 'firebase/firestore';
 
 const Identity = () => {
+  const [badges, setBadges] = useState<any[]>([]);
+  
+  // Load badges from Firebase
+  useEffect(() => {
+    const loadBadges = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      try {
+        const badgesRef = collection(db, `users/${user.uid}/badges`);
+        const unsubscribe = onSnapshot(badgesRef, (snapshot) => {
+          const badgesData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          setBadges(badgesData);
+          // Also save to localStorage as backup
+          localStorage.setItem(`badges_${user.uid}`, JSON.stringify(badgesData));
+        });
+
+        return () => unsubscribe();
+      } catch (error) {
+        console.error('Error loading badges:', error);
+        // Try loading from localStorage
+        const stored = localStorage.getItem(`badges_${user.uid}`);
+        if (stored) {
+          setBadges(JSON.parse(stored));
+        }
+      }
+    };
+
+    loadBadges();
+  }, []);
+  
   const user = {
     name: 'राम प्रसाद शर्मा',
     village: 'बड़ागांव, जिला वाराणसी',
@@ -63,6 +100,34 @@ const Identity = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Badges Section */}
+        {badges.length > 0 && (
+          <Card className="border-2 border-amber-500/30 bg-gradient-to-br from-amber-50/50 to-yellow-50/30 dark:from-amber-950/20 dark:to-yellow-950/10">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Trophy className="w-5 h-5 text-amber-600" />
+                आपके बैज ({badges.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {badges.map(badge => (
+                  <div key={badge.id} className="flex flex-col items-center p-3 bg-card rounded-xl border border-border hover:shadow-md transition-shadow">
+                    <span className="text-4xl mb-2">{badge.icon}</span>
+                    <span className="font-bold text-xs text-center text-foreground">{badge.name}</span>
+                    <span className="text-[10px] text-center text-muted-foreground mt-1">{badge.description}</span>
+                    {badge.earnedAt && (
+                      <span className="text-[9px] text-muted-foreground mt-1">
+                        {new Date(badge.earnedAt).toLocaleDateString('hi-IN', { day: 'numeric', month: 'short' })}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Details */}
         <Card className="border-none shadow-md">

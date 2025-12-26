@@ -53,7 +53,7 @@ export const Sidebar = () => {
       {/* Footer */}
       <div className="p-4 border-t border-border">
         <p className="text-xs text-muted-foreground text-center">
-          Gramin Sahayak v1.0
+          Gramin Saathi v1.0
         </p>
       </div>
     </aside>

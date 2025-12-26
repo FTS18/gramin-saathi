@@ -11,7 +11,7 @@ interface Translations {
 
 export const translations: Translations = {
   // Header
-  appName: { hi: 'ग्रामीण सहायक', en: 'Gramin Sahayak' },
+  appName: { hi: 'ग्रामीण साथी', en: 'Gramin Saathi' },
   
   // Navigation
   home: { hi: 'होम', en: 'Home' },
