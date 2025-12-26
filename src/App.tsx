@@ -417,9 +417,33 @@ const speakText = (text, lang = 'en') => {
   
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
-  utterance.rate = 0.9;
+  
+  // Map language codes to speech synthesis languages
+  const langMap = {
+    'hi': 'hi-IN',
+    'pa': 'pa-IN', // Punjabi
+    'te': 'te-IN', // Telugu
+    'ta': 'ta-IN', // Tamil
+    'kn': 'kn-IN', // Kannada
+    'ml': 'ml-IN', // Malayalam
+    'gu': 'gu-IN', // Gujarati
+    'mr': 'mr-IN', // Marathi
+    'bn': 'bn-IN', // Bengali
+    'en': 'en-IN'
+  };
+  
+  utterance.lang = langMap[lang] || 'en-IN';
+  utterance.rate = 0.85; // Slower for better clarity
   utterance.pitch = 1;
+  utterance.volume = 1;
+  
+  // Try to find a voice for the language
+  const voices = window.speechSynthesis.getVoices();
+  const preferredVoice = voices.find(v => v.lang.startsWith(langMap[lang]?.split('-')[0]));
+  if (preferredVoice) {
+    utterance.voice = preferredVoice;
+  }
+  
   window.speechSynthesis.speak(utterance);
   return true;
 };
@@ -555,6 +579,27 @@ export default function GraminSaathiOS() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+
+  // Initialize route on mount to handle page refresh
+  useEffect(() => {
+    const pathname = window.location.pathname.slice(1);
+    const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'community'];
+    
+    // Handle legacy 'home' route - redirect to 'dashboard'
+    if (pathname === 'home') {
+      window.history.replaceState(null, '', '/dashboard');
+      setCurrentView('dashboard');
+      return;
+    }
+    
+    // Restore view from URL if valid
+    if (validViews.includes(pathname)) {
+      setCurrentView(pathname);
+    } else if (pathname === '') {
+      // Root path - will be set based on login state
+      setCurrentView(user ? 'dashboard' : 'landing');
+    }
+  }, []);
 
   // Update URL when view changes using History API
   useEffect(() => {
@@ -3303,7 +3348,7 @@ function SaathiView({ user, profile, db, appId, t, lang }) {
     setLoading(false);
   };
 
-  // ✨ TTS using Web Speech API (Native Browser Support)
+  // ✨ TTS using Web Speech API (Native Browser Support) with Multi-language Support
   const playTTS = (text, index) => {
     if (!('speechSynthesis' in window)) {
       alert(lang === 'en' ? 'Text-to-speech not supported in your browser.' : 'आपके ब्राउज़र में TTS समर्थित नहीं है।');
@@ -3316,14 +3361,30 @@ function SaathiView({ user, profile, db, appId, t, lang }) {
     setAudioPlaying(index);
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang === 'en' ? 'en-IN' : 'hi-IN';
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
     
-    // Try to get a Hindi voice if available
+    // Map language codes to speech synthesis languages
+    const langMap = {
+      'hi': 'hi-IN',
+      'pa': 'pa-IN', // Punjabi
+      'te': 'te-IN', // Telugu
+      'ta': 'ta-IN', // Tamil
+      'kn': 'kn-IN', // Kannada
+      'ml': 'ml-IN', // Malayalam
+      'gu': 'gu-IN', // Gujarati
+      'mr': 'mr-IN', // Marathi
+      'bn': 'bn-IN', // Bengali
+      'en': 'en-IN'
+    };
+    
+    utterance.lang = langMap[lang] || 'en-IN';
+    utterance.rate = 0.85; // Slower for better clarity in regional languages
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    
+    // Try to get a voice for the language
     const voices = window.speechSynthesis.getVoices();
     const preferredVoice = voices.find(v => 
-      lang === 'hi' ? v.lang.includes('hi') : v.lang.includes('en')
+      v.lang.startsWith(langMap[lang]?.split('-')[0])
     );
     if (preferredVoice) {
       utterance.voice = preferredVoice;
@@ -4214,54 +4275,13 @@ function TranslatorView({ lang, user, db, appId }) {
 
   return (
     <div className="w-full md:max-w-4xl md:mx-auto space-y-4 md:space-y-6">
-      <div className="mb-4 md:mb-6 flex items-start justify-between">
-        <div>
-          <h2 className="text-xl md:text-2xl font-bold text-[var(--text-main)] flex items-center gap-2">
-            <ArrowLeftRight className="text-[var(--primary)]" />
-            {lang === 'en' ? 'Voice Translator' : 'वॉयस अनुवादक'}
-          </h2>
-          <p className="text-[var(--text-muted)]">{lang === 'en' ? 'Speak or type to translate between Indian languages' : 'भारतीय भाषाओं में अनुवाद के लिए बोलें या टाइप करें'}</p>
-        </div>
-        {user && history.length > 0 && (
-          <button
-            onClick={() => setShowHistory(!showHistory)}
-            className={`p-2 rounded-lg transition-all ${showHistory ? 'bg-[var(--primary)] text-white' : 'bg-[var(--bg-glass)] text-[var(--text-muted)] hover:text-[var(--primary)]'}`}
-          >
-            <History size={20} />
-          </button>
-        )}
+      <div className="mb-4 md:mb-6">
+        <h2 className="text-xl md:text-2xl font-bold text-[var(--text-main)] flex items-center gap-2">
+          <ArrowLeftRight className="text-[var(--primary)]" />
+          {lang === 'en' ? 'Voice Translator' : 'वॉयस अनुवादक'}
+        </h2>
+        <p className="text-[var(--text-muted)]">{lang === 'en' ? 'Speak or type to translate between Indian languages' : 'भारतीय भाषाओं में अनुवाद के लिए बोलें या टाइप करें'}</p>
       </div>
-
-      {/* History Panel */}
-      {showHistory && history.length > 0 && (
-        <div className="mb-6 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 shadow-[var(--shadow-card)]">
-          <h3 className="font-bold text-[var(--text-main)] mb-3 flex items-center gap-2">
-            <History size={18} className="text-[var(--primary)]" />
-            {lang === 'en' ? 'Recent Translations' : 'हाल के अनुवाद'}
-          </h3>
-          <div className="space-y-3 max-h-64 overflow-y-auto">
-            {history.slice(0, 10).map((item, idx) => (
-              <div 
-                key={idx}
-                onClick={() => {
-                  setInputText(item.original);
-                  setOutputText(item.translated);
-                  setFromLang(item.fromLang);
-                  setToLang(item.toLang);
-                  setShowHistory(false);
-                }}
-                className="p-3 rounded-xl bg-[var(--bg-glass)] border border-[var(--border)] cursor-pointer hover:border-[var(--primary)] transition-colors"
-              >
-                <div className="text-xs text-[var(--text-muted)] mb-1">
-                  {languages.find(l => l.code === item.fromLang)?.name} → {languages.find(l => l.code === item.toLang)?.name}
-                </div>
-                <p className="text-sm text-[var(--text-main)] line-clamp-1">{item.original}</p>
-                <p className="text-sm text-[var(--primary)] line-clamp-1">{item.translated}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--shadow-card)]">
         {/* Language Selectors */}
@@ -4370,6 +4390,37 @@ function TranslatorView({ lang, user, db, appId }) {
           </p>
         </div>
       </div>
+
+      {/* History Section - Now Below Translator */}
+      {user && history.length > 0 && (
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 shadow-[var(--shadow-card)]">
+          <h3 className="font-bold text-[var(--text-main)] mb-3 flex items-center gap-2">
+            <History size={18} className="text-[var(--primary)]" />
+            {lang === 'en' ? 'Recent Translations' : 'हाल के अनुवाद'}
+          </h3>
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {history.slice(0, 15).map((item, idx) => (
+              <div 
+                key={idx}
+                onClick={() => {
+                  setInputText(item.inputText);
+                  setOutputText(item.outputText);
+                  setFromLang(item.fromLang);
+                  setToLang(item.toLang);
+                }}
+                className="p-3 rounded-xl bg-[var(--bg-glass)] border border-[var(--border)] cursor-pointer hover:border-[var(--primary)] transition-colors group"
+              >
+                <div className="text-xs text-[var(--text-muted)] mb-1 flex items-center justify-between">
+                  <span>{languages.find(l => l.code === item.fromLang)?.name} → {languages.find(l => l.code === item.toLang)?.name}</span>
+                  <span className="text-[10px]">{item.createdAt?.toDate?.()?.toLocaleDateString() || ''}</span>
+                </div>
+                <p className="text-sm text-[var(--text-main)] line-clamp-1">{item.inputText}</p>
+                <p className="text-sm text-[var(--primary)] line-clamp-1">{item.outputText}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
