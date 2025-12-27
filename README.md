@@ -1,73 +1,144 @@
-# Welcome to your Lovable project
+# 🌾 Gramin Saathi
 
-## Project info
+**Digital Financial Companion for Rural India**
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+A Progressive Web App (PWA) designed to empower rural farmers and communities with financial literacy, government scheme access, market prices, and AI-powered assistance - all in Hindi and English.
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## ✨ Key Features
 
-**Use Lovable**
+### 💰 Khata (Digital Ledger)
+Track income and expenses with voice input support. Works offline and syncs when connected.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### 🤖 Saathi AI
+Intelligent assistant powered by Gemini AI. Ask questions about farming, schemes, finances in Hindi or English.
 
-Changes made via Lovable will be committed automatically to this repo.
+### 📊 Mandi Prices
+Live market prices from 30,000+ mandis across India. Fuzzy search for any market, district, or crop.
 
-**Use your preferred IDE**
+### 🏛️ Yojana (Government Schemes)
+Discover eligible schemes like PM-KISAN, PMFBY, KCC with Hindi/English explanations and application guidance.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### 📚 Seekho (Learn)
+Financial literacy modules with quizzes. Track progress and earn certificates.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 🌤️ Mausam (Weather)
+5-day weather forecasts with farming recommendations.
 
-Follow these steps:
+### 🧮 Calculator
+Financial calculators for loans, interest, crop yield, unit conversions.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### 🌐 Translator
+Hindi ↔ English translation with voice support.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### 👥 Community
+Discussion forums and agricultural articles.
 
-# Step 3: Install the necessary dependencies.
-npm i
+---
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+## 🚀 Quick Start
+
+```bash
+# Clone repository
+git clone https://github.com/your-repo/gramin-saathi.git
+cd gramin-saathi
+
+# Install dependencies
+npm install
+
+# Create .env file with API keys (see .env.example)
+
+# Start development server
 npm run dev
+
+# Build for production
+npm run build
 ```
 
-**Edit a file directly in GitHub**
+---
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 📱 Progressive Web App
 
-**Use GitHub Codespaces**
+- **Install on any device** - Works as native app on Android, iOS, Windows
+- **Offline-first** - All features work without internet
+- **Auto-sync** - Data syncs when back online
+- **Fast loading** - Service worker caches assets
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+---
 
-## What technologies are used for this project?
+## 🔧 Tech Stack
 
-This project is built with:
+- **Frontend**: React 18, TypeScript, Tailwind CSS
+- **Backend**: Firebase (Auth, Firestore)
+- **PWA**: Vite PWA Plugin, Workbox
+- **APIs**: data.gov.in (Mandi), OpenWeather, Google Gemini
+- **Offline**: IndexedDB (Dexie.js), Web Speech API
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+---
 
-## How can I deploy this project?
+## 🌐 Languages
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+- English (EN)
+- Hindi (हिंदी)
 
-## Can I connect a custom domain to my Lovable project?
+---
 
-Yes, you can!
+## 🎨 Themes
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+- **Ocean** (Default) - Dark teal theme
+- **Light** - Clean white theme  
+- **Dark** - Pure dark theme
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+---
+
+## 📁 Project Structure
+
+```
+src/
+├── components/
+│   ├── views/          # Page components
+│   ├── ui/             # UI elements
+│   └── custom-ui/      # Navigation, cards
+├── lib/
+│   ├── firebase-config.ts
+│   ├── offline-db.ts
+│   ├── translations.ts
+│   └── voice-processor.ts
+└── App.tsx
+```
+
+---
+
+## 🔐 Environment Variables
+
+```env
+VITE_FIREBASE_API_KEY=xxx
+VITE_FIREBASE_AUTH_DOMAIN=xxx
+VITE_FIREBASE_PROJECT_ID=xxx
+VITE_WEATHER_API_KEY=xxx
+VITE_MANDI_API_KEY=xxx
+VITE_GEMINI_API_KEY=xxx
+```
+
+---
+
+## 📄 License
+
+MIT License - Free for personal and commercial use.
+
+---
+
+## 🤝 Contributing
+
+Contributions welcome! Please read our contribution guidelines.
+
+---
+
+## 📞 Support
+
+For support, email support@graminsaathi.in or join our Discord community.
+
+---
+
+**Made with ❤️ for Rural India**
