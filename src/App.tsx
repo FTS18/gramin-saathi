@@ -51,11 +51,9 @@ import {
   Shield,
   Smartphone,
   AlertTriangle,
-  AlertCircle,
   CheckCircle,
   XCircle,
   Check,
-  Info,
   Filter,
   Download,
   Search,
@@ -250,15 +248,6 @@ const themeStyles = `
     z-index: 9999;
     transition: width 0.3s ease;
     box-shadow: 0 0 10px var(--primary-glow);
-  }
-
-  /* Utility Classes */
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
   }
 
   /* Skip to main content (Accessibility) */
@@ -583,77 +572,28 @@ const speakText = (text, lang = 'en') => {
   return true;
 };
 
-// Speech-to-Text (STT) with Android compatibility
-const startVoiceRecognition = (onResult, onError, lang = 'en') => {
-  // Check for browser support
+const startVoiceRecognition = (onResult, lang = 'en') => {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    return null;
+  }
+  
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = new SpeechRecognition();
+  recognition.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
+  recognition.continuous = false;
+  recognition.interimResults = false;
   
-  if (!SpeechRecognition) {
-    if (onError) onError('Speech recognition not supported');
-    return null;
-  }
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    onResult(transcript);
+  };
   
-  try {
-    const recognition = new SpeechRecognition();
-    
-    // Set language
-    recognition.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
-    recognition.continuous = false;
-    recognition.interimResults = true; // Show intermediate results
-    recognition.maxAlternatives = 1;
-    
-    recognition.onresult = (event) => {
-      // Get the most recent result
-      const lastResult = event.results[event.results.length - 1];
-      if (lastResult.isFinal) {
-        const transcript = lastResult[0].transcript;
-        if (transcript && transcript.trim()) {
-          onResult(transcript.trim());
-        }
-      }
-    };
-    
-    recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
-      if (onError) {
-        if (event.error === 'not-allowed') {
-          onError('Microphone access denied. Please allow microphone permission.');
-        } else if (event.error === 'no-speech') {
-          onError('No speech detected. Please try again.');
-        } else if (event.error === 'network') {
-          onError('Network error. Check your connection.');
-        } else {
-          onError('Voice input failed. Try again.');
-        }
-      }
-    };
-    
-    recognition.onend = () => {
-      // Recognition ended (can be used for UI updates)
-    };
-    
-    // Start recognition
-    recognition.start();
-    return recognition;
-    
-  } catch (err) {
-    console.error('STT initialization error:', err);
-    if (onError) onError('Could not start voice input');
-    return null;
-  }
+  recognition.start();
+  return recognition;
 };
 
 // Attach to window for global access
 window.startVoiceRecognition = startVoiceRecognition;
-
-/**
- * Format number in Indian numeral system (e.g., 1,00,000 for lakhs)
- */
-const formatIndianNumber = (num) => {
-  const n = Number(num);
-  if (isNaN(n)) return num;
-  return n.toLocaleString('en-IN');
-};
 
 /**
  * Generate dummy transactions for demo/new users
@@ -661,12 +601,12 @@ const formatIndianNumber = (num) => {
  */
 const generateDummyTransactions = (lang = 'en') => {
   const incomeItems = lang === 'en' 
-    ? ['Sold wheat', 'Milk sale', 'Vegetable sale', 'Rice sold', 'Crop sale', 'Dairy income', 'Sold mangoes', 'Government subsidy', 'Labor payment received']
-    : ['गेहूं बेचा', 'दूध बिक्री', 'सब्जी बिक्री', 'चावल बेचा', 'फसल बिक्री', 'डेयरी आय', 'आम बेचे', 'सरकारी सब्सिडी', 'मजदूरी आय'];
+    ? ['Sold wheat', 'Milk sale', 'Vegetable sale', 'Rice sold', 'Crop sale', 'Dairy income', 'Sold mangoes', 'Government subsidy', 'Farm labor payment']
+    : ['गेहूं बेचा', 'दूध बिक्री', 'सब्जी बिक्री', 'चावल बेचा', 'फसल बिक्री', 'डेयरी आय', 'आम बेचे', 'सरकारी सब्सिडी', 'खेत मजदूरी'];
   
   const expenseItems = lang === 'en'
-    ? ['Seeds purchase', 'Fertilizer', 'Diesel for pump', 'Labor wages paid', 'Pesticides', 'Equipment repair', 'Electricity bill', 'Transport cost', 'Animal feed', 'Irrigation expense', 'Farm labor payment']
-    : ['बीज खरीदे', 'खाद', 'पंप डीज़ल', 'मजदूरी दी', 'कीटनाशक', 'उपकरण मरम्मत', 'बिजली बिल', 'परिवहन खर्च', 'पशु चारा', 'सिंचाई खर्च', 'खेत मजदूरी'];
+    ? ['Seeds purchase', 'Fertilizer', 'Diesel for pump', 'Labor wages', 'Pesticides', 'Equipment repair', 'Electricity bill', 'Transport cost', 'Animal feed', 'Irrigation expense']
+    : ['बीज खरीदे', 'खाद', 'पंप डीज़ल', 'मजदूरी', 'कीटनाशक', 'उपकरण मरम्मत', 'बिजली बिल', 'परिवहन खर्च', 'पशु चारा', 'सिंचाई खर्च'];
 
   const transactions = [];
   const today = new Date();
@@ -730,13 +670,8 @@ const generateDummyTransactions = (lang = 'en') => {
 export default function GraminSaathiOS() {
   // Global State
   const [user, setUser] = useState(null);
-  // Theme: 'dark' (default/ocean), 'light', 'ocean'
-  const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem('app_theme');
-    // Map old 'blue' to 'ocean' for backwards compatibility
-    if (saved === 'blue') return 'ocean';
-    return saved || 'ocean';
-  });
+  // Theme: 'blue' (default), 'dark', 'light'
+  const [theme, setTheme] = useState(() => localStorage.getItem('app_theme') || 'blue');
   const [lang, setLang] = useState('en');
   const [fontSize, setFontSize] = useState('normal'); // normal, large, xlarge
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -747,36 +682,21 @@ export default function GraminSaathiOS() {
   const [routeLoading, setRouteLoading] = useState(false); // Route transition progress bar
   const [loadProgress, setLoadProgress] = useState(0); // Progress bar percentage
   
-  // Toast notification state
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-  
-  // Show toast notification
-  const showToast = (message, type = 'success') => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
-  };
-  
   // Apply theme to body
   useEffect(() => {
-    document.body.classList.remove('theme-blue', 'theme-dark', 'theme-light', 'theme-ocean');
-    if (theme === 'light') {
-      document.body.classList.add('theme-light');
-    } else if (theme === 'dark') {
-      document.body.classList.add('theme-dark');
+    document.body.classList.remove('theme-blue', 'theme-dark', 'theme-light');
+    if (theme !== 'blue') {
+      document.body.classList.add(`theme-${theme}`);
     }
-    // 'ocean' is the default, no class needed (uses blue CSS variables)
     localStorage.setItem('app_theme', theme);
   }, [theme]);
   
-  // Theme toggle function (cycles: ocean -> light -> dark -> ocean)
+  // Theme toggle function (cycles: blue -> light -> dark -> blue)
   const cycleTheme = () => {
     setTheme(prev => {
-      let next;
-      if (prev === 'ocean') next = 'light';
-      else if (prev === 'light') next = 'dark';
-      else next = 'ocean';
-      showToast(`Theme: ${next.charAt(0).toUpperCase() + next.slice(1)}`, 'info');
-      return next;
+      if (prev === 'blue') return 'light';
+      if (prev === 'light') return 'dark';
+      return 'blue';
     });
   };
   
@@ -837,49 +757,18 @@ export default function GraminSaathiOS() {
     const pathname = window.location.pathname.slice(1);
     const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'translator', 'community'];
     
-    // ALWAYS redirect /home to /dashboard (legacy route)
+    // Handle legacy 'home' route - redirect to 'dashboard'
     if (pathname === 'home') {
-      window.history.replaceState(null, '', '/dashboard');
-      if (user) {
-        setCurrentView('dashboard');
-      } else {
-        // Not logged in - redirect to dashboard will show auth
-        setShowAuth(true);
-      }
-      return;
-    }
-    
-    // Handle login/auth routes
-    if (pathname === 'login' || pathname === 'auth') {
-      if (user) {
-        // Already logged in, go to dashboard
-        setCurrentView('dashboard');
-        window.history.replaceState(null, '', '/dashboard');
-      } else {
-        setShowAuth(true);
-      }
-      return;
-    }
-    
-    // Handle root path /
-    if (pathname === '') {
-      if (user) {
-        setCurrentView('dashboard');
-        window.history.replaceState(null, '', '/dashboard');
-      } else {
-        setCurrentView('landing');
-      }
+      setCurrentView('landing');
       return;
     }
     
     // Restore view from URL if valid
     if (validViews.includes(pathname)) {
-      if (user) {
-        setCurrentView(pathname);
-      } else {
-        // Not logged in, trying to access protected route
-        setShowAuth(true);
-      }
+      setCurrentView(pathname);
+    } else if (pathname === '') {
+      // Root path - will be set based on login state
+      setCurrentView(user ? 'dashboard' : 'landing');
     }
   }, [user]);
 
@@ -888,7 +777,9 @@ export default function GraminSaathiOS() {
     if (currentView !== 'onboarding' && currentView !== 'landing') {
       window.history.pushState(null, '', `/${currentView}`);
     } else if (currentView === 'landing') {
-      window.history.pushState(null, '', `/`);
+      if (window.location.pathname !== '/home') {
+        window.history.pushState(null, '', `/`);
+      }
     }
   }, [currentView]);
   
@@ -896,18 +787,16 @@ export default function GraminSaathiOS() {
   useEffect(() => {
     const handlePopState = () => {
       const pathname = window.location.pathname.slice(1);
-      
-      // /home always goes to dashboard
+      // Support both 'home' (legacy) and 'dashboard' routes
       if (pathname === 'home') {
-        window.history.replaceState(null, '', '/dashboard');
-        setCurrentView(user ? 'dashboard' : 'landing');
+        setCurrentView('dashboard');
         return;
       }
-      
       const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'identity', 'mandi', 'mausam', 'calculator', 'translator', 'community'];
       if (validViews.includes(pathname)) {
         setCurrentView(pathname);
-      } else if (pathname === '' || pathname === 'login' || pathname === 'auth') {
+      } else if (pathname === '') {
+        // Root path - show landing if not logged in
         setCurrentView(user ? 'dashboard' : 'landing');
       }
     };
@@ -1132,17 +1021,7 @@ export default function GraminSaathiOS() {
     return (
       <>
         <style>{themeStyles}</style>
-        <AuthView 
-          onLogin={() => {
-            setShowAuth(false);
-            setCurrentView('dashboard');
-            window.history.replaceState(null, '', '/dashboard');
-            showToast(lang === 'en' ? 'Welcome back!' : 'स्वागत है!', 'success');
-          }} 
-          t={t} 
-          lang={lang} 
-          toggleLang={toggleLang} 
-        />
+        <AuthView onLogin={() => {}} t={t} lang={lang} toggleLang={toggleLang} />
       </>
     );
   }
@@ -1162,22 +1041,6 @@ export default function GraminSaathiOS() {
           aria-valuemax={100}
           aria-label="Page loading"
         />
-      )}
-      
-      {/* Toast Notification */}
-      {toast.show && (
-        <div 
-          className={`fixed top-4 left-1/2 -translate-x-1/2 z-[9999] px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-in slide-in-from-top duration-300 ${
-            toast.type === 'success' ? 'bg-green-500 text-white' :
-            toast.type === 'error' ? 'bg-red-500 text-white' :
-            'bg-[var(--bg-card)] text-[var(--text-main)] border border-[var(--border)]'
-          }`}
-        >
-          {toast.type === 'success' && <CheckCircle size={18} />}
-          {toast.type === 'error' && <AlertCircle size={18} />}
-          {toast.type === 'info' && <Info size={18} />}
-          <span className="text-sm font-medium">{toast.message}</span>
-        </div>
       )}
       
       {/* Skip to main content link for accessibility */}
@@ -1253,12 +1116,19 @@ export default function GraminSaathiOS() {
                  </button>
                  <button 
                    onClick={cycleTheme} 
-                   className="flex-1 p-2 rounded-xl bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--bg-card-hover)] transition-colors flex items-center justify-center gap-2 border border-[var(--border)]"
-                   title={theme === 'dark' ? 'Dark Theme' : theme === 'light' ? 'Light Theme' : 'Ocean Theme'}
+                   className="p-2 rounded-xl bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--bg-card-hover)] transition-colors flex items-center justify-center border border-[var(--border)] min-w-[40px]"
+                   title={theme === 'blue' ? 'Ocean Theme' : theme === 'light' ? 'Light Theme' : 'Dark Theme'}
                    aria-label={`Current theme: ${theme}. Click to change theme.`}
                  >
-                   {theme === 'dark' ? <Moon size={16} /> : theme === 'light' ? <Sun size={16} /> : <Droplet size={16} />}
-                   <span className="text-xs font-medium">{theme === 'dark' ? 'Dark' : theme === 'light' ? 'Light' : 'Ocean'}</span>
+                   {theme === 'blue' ? <Droplet size={18} /> : theme === 'light' ? <Sun size={18} /> : <Moon size={18} />}
+                 </button>
+                 <button 
+                   onClick={toggleSunlightMode} 
+                   className="p-2 rounded-xl bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--bg-card-hover)] transition-colors flex items-center justify-center border border-[var(--border)]"
+                   title="Sunlight Mode (High Contrast)"
+                   aria-label={sunlightMode ? 'Disable sunlight mode' : 'Enable sunlight mode for outdoor visibility'}
+                 >
+                   {sunlightMode ? '☀️' : '🔆'}
                  </button>
               </div>
             </div>
@@ -2789,28 +2659,18 @@ ${lang === 'en' ? 'Transactions' : 'लेनदेन'}: ${filteredTransactions
     e.preventDefault();
     if (!amount) return;
     setSaving(true);
-    
-    // Auto-fill description if empty
-    const autoDesc = desc.trim() || (
-      type === 'income' 
-        ? (lang === 'en' ? 'Amount Credited' : 'राशि जमा') 
-        : (lang === 'en' ? 'Amount Debited' : 'राशि खर्च')
-    );
-    
     try {
       await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'khata'), {
         amount: Number(amount),
-        description: autoDesc,
+        description: desc || (type === 'income' ? 'Income' : 'Expense'),
         type,
-        date: serverTimestamp(),
+        date: serverTimestamp(), // Use server timestamp for sorting
         displayDate: new Date().toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN')
       });
       setAmount('');
       setDesc('');
-      showToast(lang === 'en' ? 'Transaction saved!' : 'लेनदेन सहेजा गया!', 'success');
     } catch (err) {
       console.error(err);
-      showToast(lang === 'en' ? 'Failed to save' : 'सहेजने में विफल', 'error');
     }
     setSaving(false);
   };
@@ -2871,206 +2731,156 @@ ${lang === 'en' ? 'Transactions' : 'लेनदेन'}: ${filteredTransactions
     setVoiceField(field);
     
     if (!window.startVoiceRecognition) {
-      showToast(lang === 'en' ? 'Voice not supported' : 'आवाज समर्थित नहीं', 'error');
+      alert(lang === 'en' ? 'Voice not supported in this browser' : 'इस ब्राउज़र में आवाज समर्थित नहीं है');
       setIsListening(false);
       return;
     }
     
-    window.startVoiceRecognition(
-      // On result
-      (result) => {
-        if (field === 'amount') {
-          // Extract numbers from speech
-          const numbers = result.match(/\d+/g);
-          if (numbers) {
-            setAmount(numbers.join(''));
-          }
-        } else if (field === 'desc') {
-          setDesc(result);
+    window.startVoiceRecognition((result) => {
+      if (field === 'amount') {
+        // Extract numbers from speech
+        const numbers = result.match(/\d+/g);
+        if (numbers) {
+          setAmount(numbers.join(''));
         }
-        setIsListening(false);
-        setVoiceField(null);
-      },
-      // On error
-      (error) => {
-        showToast(error, 'error');
-        setIsListening(false);
-        setVoiceField(null);
-      },
-      lang
-    );
+      } else if (field === 'desc') {
+        setDesc(result);
+      }
+      setIsListening(false);
+      setVoiceField(null);
+    }, lang);
   };
 
   return (
     <div className="w-full md:max-w-4xl md:mx-auto flex flex-col gap-3 md:gap-6 md:grid md:grid-cols-2">
       
       {/* Input Section */}
-      <div className="bg-[var(--bg-card)] p-4 md:p-6 rounded-xl md:rounded-2xl shadow-[var(--shadow-card)] border border-[var(--border)]">
-        <h3 className="font-bold text-sm md:text-lg mb-3 md:mb-4 text-[var(--text-main)] flex items-center gap-2">
-          <div className="p-2 rounded-lg bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)]">
-            <Wallet className="text-white" size={16} />
-          </div>
+      <div className="bg-[var(--bg-card)] p-3 md:p-6 rounded-xl md:rounded-2xl shadow-[var(--shadow-card)] border border-[var(--border)]">
+        <h3 className="font-bold text-sm md:text-lg mb-2 md:mb-4 text-[var(--text-main)] flex items-center gap-2">
+          <Wallet className="text-[var(--primary)]" size={18} />
           {t('add_new')}
         </h3>
 
-        {/* ✨ Magic AI Input Box - Better styling */}
-        <div className="mb-4 md:mb-6 p-3 md:p-4 bg-gradient-to-r from-[var(--primary)]/10 to-[var(--secondary)]/10 rounded-xl border border-[var(--primary)]/30">
-          <label className="text-[10px] md:text-xs font-bold text-[var(--primary)] flex items-center gap-1.5 mb-2">
-            <Sparkles size={12} /> {t('magic_add')}
+        {/* ✨ Magic AI Input Box */}
+        <div className="mb-3 md:mb-6 p-2.5 md:p-3 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-900 rounded-lg md:rounded-xl border border-[var(--accent)] border-dashed">
+          <label className="text-[10px] md:text-xs font-bold text-[var(--secondary)] flex items-center gap-1 mb-1.5">
+            <Sparkles size={10} /> {t('magic_add')}
           </label>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 md:gap-2">
             <input 
               type="text" 
               value={magicInput}
               onChange={e => setMagicInput(e.target.value)}
-              className="flex-1 bg-[var(--bg-input)] border border-[var(--border)] rounded-lg text-xs md:text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-[var(--text-main)] placeholder-[var(--text-muted)]"
+              className="flex-1 bg-transparent border-b border-[var(--secondary)] text-xs md:text-sm p-1 focus:outline-none text-[var(--text-main)] placeholder-[var(--text-muted)]"
               placeholder={t('magic_placeholder')}
               onKeyDown={e => e.key === 'Enter' && handleMagicParse()}
             />
             <button 
               onClick={handleMagicParse}
               disabled={magicLoading}
-              className="bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white px-3 md:px-4 py-2 rounded-lg text-xs font-bold disabled:opacity-50 hover:opacity-90 transition-opacity flex items-center gap-1"
+              className="bg-[var(--secondary)] text-white px-2 md:px-3 py-1 rounded-md md:rounded-lg text-[10px] md:text-xs font-bold disabled:opacity-50"
             >
-              {magicLoading ? <Loader className="animate-spin" size={12} /> : <Sparkles size={12} />}
-              <span className="hidden sm:inline">{t('magic_btn')}</span>
+              {magicLoading ? '...' : t('magic_btn')}
             </button>
           </div>
         </div>
 
-        <form onSubmit={addTransaction} className="space-y-4">
-          {/* Income/Expense Toggle - Improved */}
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={addTransaction} className="space-y-3 md:space-y-4">
+          <div className="grid grid-cols-2 gap-2 md:gap-4">
              <button
                type="button"
                onClick={() => setType('income')}
-               className={`p-3 md:p-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
-                 type === 'income' 
-                   ? 'bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-lg shadow-green-500/25' 
-                   : 'bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-muted)] hover:border-green-500/50'
-               }`}
+               className={`p-2 md:p-3 rounded-lg border-2 font-bold text-xs md:text-sm transition-all ${type === 'income' ? 'border-[var(--success)] bg-green-50 text-[var(--success)]' : 'border-[var(--border)] text-[var(--text-muted)]'}`}
              >
-               <TrendingUp size={16} />
                {t('income')}
              </button>
              <button
                type="button"
                onClick={() => setType('expense')}
-               className={`p-3 md:p-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
-                 type === 'expense' 
-                   ? 'bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-lg shadow-red-500/25' 
-                   : 'bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-muted)] hover:border-red-500/50'
-               }`}
+               className={`p-2 md:p-3 rounded-lg border-2 font-bold text-xs md:text-sm transition-all ${type === 'expense' ? 'border-[var(--danger)] bg-red-50 text-[var(--danger)]' : 'border-[var(--border)] text-[var(--text-muted)]'}`}
              >
-               <TrendingDown size={16} />
                {t('expense')}
              </button>
           </div>
 
-          {/* Amount Field - Improved */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-[var(--text-muted)] uppercase flex items-center justify-between">
-              <span className="flex items-center gap-1">
-                <Wallet size={12} />
-                {t('amount')}
-              </span>
+          <div>
+            <label className="text-[10px] md:text-xs font-bold text-[var(--text-muted)] uppercase flex items-center justify-between">
+              <span>{t('amount')}</span>
               <button
                 type="button"
                 onClick={() => handleVoiceInput('amount')}
                 disabled={isListening}
-                className={`p-1.5 rounded-lg transition-all ${
-                  isListening && voiceField === 'amount'
-                    ? 'bg-[var(--primary)] text-white animate-pulse'
-                    : 'bg-[var(--bg-input)] text-[var(--text-muted)] hover:bg-[var(--primary)] hover:text-white'
-                }`}
+                className="p-1 rounded-lg bg-[var(--bg-input)] text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-colors"
                 title={lang === 'en' ? 'Voice input' : 'आवाज इनपुट'}
               >
-                <Mic size={14} />
-              </button>
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-bold text-[var(--text-muted)]">₹</span>
-              <input 
-                type="number" 
-                value={amount}
-                onChange={e => setAmount(e.target.value)}
-                className="w-full bg-[var(--bg-input)] border border-[var(--border)] rounded-xl text-xl md:text-2xl font-bold pl-8 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-[var(--text-main)]"
-                placeholder="0"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Description Field - Optional */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-[var(--text-muted)] uppercase flex items-center justify-between">
-              <span className="flex items-center gap-1">
-                <FileText size={12} />
-                {t('description')}
-                <span className="text-[10px] font-normal normal-case text-[var(--text-muted)]">
-                  ({lang === 'en' ? 'optional' : 'वैकल्पिक'})
-                </span>
-              </span>
-              <button
-                type="button"
-                onClick={() => handleVoiceInput('desc')}
-                disabled={isListening}
-                className={`p-1.5 rounded-lg transition-all ${
-                  isListening && voiceField === 'desc'
-                    ? 'bg-[var(--primary)] text-white animate-pulse'
-                    : 'bg-[var(--bg-input)] text-[var(--text-muted)] hover:bg-[var(--primary)] hover:text-white'
-                }`}
-                title={lang === 'en' ? 'Voice input' : 'आवाज इनपुट'}
-              >
-                <Mic size={14} />
+                <Mic size={12} className={isListening && voiceField === 'amount' ? 'animate-pulse' : ''} />
               </button>
             </label>
             <input 
-              type="text" 
-              value={desc}
-              onChange={e => setDesc(e.target.value)}
-              className="w-full bg-[var(--bg-input)] border border-[var(--border)] rounded-xl text-sm px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-[var(--text-main)] placeholder-[var(--text-muted)]"
-              placeholder={lang === 'en' ? 'Leave empty for auto "Credited/Debited"' : 'खाली छोड़ें - ऑटो "जमा/खर्च"'}
+              type="number" 
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              className="w-full text-2xl md:text-3xl font-bold bg-transparent border-b-2 border-[var(--border)] focus:border-[var(--primary)] focus:outline-none py-1.5 md:py-2 text-[var(--text-main)]"
+              placeholder="0"
+              required
             />
           </div>
 
-          {/* Save Button - Premium Gradient */}
+          <div>
+             <label className="text-[10px] md:text-xs font-bold text-[var(--text-muted)] uppercase flex items-center justify-between">
+               <span>{t('desc')}</span>
+               <button
+                 type="button"
+                 onClick={() => handleVoiceInput('desc')}
+                 disabled={isListening}
+                 className="p-1 rounded-lg bg-[var(--bg-input)] text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-colors"
+                 title={lang === 'en' ? 'Voice input' : 'आवाज इनपुट'}
+               >
+                 <Mic size={12} className={isListening && voiceField === 'desc' ? 'animate-pulse' : ''} />
+               </button>
+             </label>
+             <input 
+               type="text"
+               value={desc}
+               onChange={e => setDesc(e.target.value)} 
+               className="w-full p-2 md:p-3 mt-1 rounded-lg bg-[var(--bg-input)] text-[var(--text-main)] text-sm border-none focus:ring-2 focus:ring-[var(--primary)]"
+               placeholder={lang === 'en' ? "e.g. Sold seeds" : "उदा. बीज बेचे"}
+             />
+          </div>
+
           <button 
             type="submit" 
             disabled={saving}
-            className="w-full py-3.5 md:py-4 bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white rounded-xl font-bold text-sm md:text-base hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-[var(--primary)]/25 disabled:opacity-50"
+            className="w-full py-3 md:py-4 bg-[var(--text-main)] text-[var(--bg-card)] rounded-lg md:rounded-xl font-bold text-sm md:text-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
           >
-            {saving ? <Loader className="animate-spin" size={18} /> : <Save size={18} />}
+            {saving ? <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-current border-t-transparent rounded-full animate-spin"/> : <Save size={18} />}
             {t('save')}
           </button>
         </form>
       </div>
-        
+
       {/* List Section */}
       <div className="flex flex-col bg-[var(--bg-card)] md:bg-transparent rounded-xl md:rounded-none shadow-[var(--shadow-card)] md:shadow-none border border-[var(--border)] md:border-none">
         <div className="p-3 md:p-0 bg-[var(--bg-card)] md:bg-transparent border-b border-[var(--border)] md:border-none sticky top-0 z-10">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-sm md:text-lg text-[var(--text-main)] flex items-center gap-2">
-              {t('recent_transactions')}
-            </h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-bold text-sm md:text-lg text-[var(--text-main)]">{t('recent_transactions')}</h3>
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`p-2 rounded-lg transition-all ${showFilters ? 'bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white shadow-sm' : 'bg-[var(--bg-input)] text-[var(--text-muted)] hover:text-[var(--primary)] border border-[var(--border)]'}`}
-                title={lang === 'en' ? 'Filter' : 'फ़िल्टर'}
+                className={`p-1.5 md:p-2 rounded-lg transition-all ${showFilters ? 'bg-[var(--primary)] text-white' : 'bg-[var(--bg-input)] text-[var(--text-muted)] hover:text-[var(--primary)]'}`}
               >
                 <Filter size={14} />
               </button>
               <button
                 onClick={exportToCSV}
-                className="p-2 rounded-lg bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50 transition-all"
+                className="p-1.5 md:p-2 rounded-lg bg-[var(--bg-input)] text-[var(--text-muted)] hover:text-[var(--primary)]"
                 title={lang === 'en' ? 'Export CSV' : 'CSV निर्यात'}
               >
                 <Download size={14} />
               </button>
               <button
                 onClick={exportSummary}
-                className="p-2 rounded-lg bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50 transition-all"
+                className="p-1.5 md:p-2 rounded-lg bg-[var(--bg-input)] text-[var(--text-muted)] hover:text-[var(--primary)]"
                 title={lang === 'en' ? 'Share Summary' : 'सारांश शेयर करें'}
               >
                 <Share2 size={14} />
@@ -3078,49 +2888,29 @@ ${lang === 'en' ? 'Transactions' : 'लेनदेन'}: ${filteredTransactions
             </div>
           </div>
           
-          {/* Analytics Button - Premium */}
-          <button
-            onClick={() => setShowAnalytics(!showAnalytics)}
-            className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 mb-3 ${
-              showAnalytics 
-                ? 'bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white shadow-lg shadow-[var(--primary)]/25' 
-                : 'bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--primary)]/50 hover:text-[var(--primary)]'
-            }`}
-          >
-            <BarChart3 size={16} />
-            {lang === 'en' ? 'Analytics' : 'विश्लेषण'}
-            <ChevronDown size={14} className={`transition-transform ${showAnalytics ? 'rotate-180' : ''}`} />
-          </button>
-          
           {/* Filters Panel */}
           {showFilters && (
-            <div className="space-y-3 pb-3 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="space-y-2 pb-2 animate-in fade-in slide-in-from-top-2 duration-200">
               {/* Search */}
               <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={lang === 'en' ? 'Search transactions...' : 'लेनदेन खोजें...'}
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border)] text-sm text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                  placeholder={lang === 'en' ? 'Search...' : 'खोजें...'}
+                  className="w-full pl-8 pr-2 py-1.5 rounded-lg bg-[var(--bg-input)] border border-[var(--border)] text-xs text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                 />
               </div>
               
               {/* Type Filter */}
-              <div className="flex gap-2">
+              <div className="flex gap-1.5">
                 {['all', 'income', 'expense'].map(ft => (
                   <button
                     key={ft}
                     onClick={() => setFilterType(ft)}
-                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 ${
-                      filterType === ft 
-                        ? (ft === 'income' ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-sm' : ft === 'expense' ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-sm' : 'bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white shadow-sm') 
-                        : 'bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-muted)]'
-                    }`}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] md:text-xs font-bold transition-all ${filterType === ft ? (ft === 'income' ? 'bg-green-100 text-green-700' : ft === 'expense' ? 'bg-red-100 text-red-700' : 'bg-[var(--primary)] text-white') : 'bg-[var(--bg-input)] text-[var(--text-muted)]'}`}
                   >
-                    {ft === 'income' && <TrendingUp size={12} />}
-                    {ft === 'expense' && <TrendingDown size={12} />}
                     {ft === 'all' ? (lang === 'en' ? 'All' : 'सभी') : ft === 'income' ? t('income') : t('expense')}
                   </button>
                 ))}
@@ -3151,6 +2941,17 @@ ${lang === 'en' ? 'Transactions' : 'लेनदेन'}: ${filteredTransactions
               </div>
             </div>
           )}
+          
+          {/* Analytics Button */}
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={() => setShowAnalytics(!showAnalytics)}
+              className="flex-1 py-1.5 md:py-2 px-2 rounded-lg bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/20 dark:to-cyan-900/20 text-blue-700 dark:text-blue-300 text-[10px] md:text-xs font-bold flex items-center justify-center gap-1.5 hover:scale-105 transition-transform"
+            >
+              <BarChart3 size={12} />
+              {lang === 'en' ? 'Analytics' : 'विश्लेषण'}
+            </button>
+          </div>
         </div>
         
         {/* Analytics Modal */}
@@ -3255,28 +3056,21 @@ ${lang === 'en' ? 'Transactions' : 'लेनदेन'}: ${filteredTransactions
              </div>
           )}
           {filteredTransactions.map(tr => (
-            <div key={tr.id} className="group flex items-center justify-between p-3 md:p-4 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-sm hover:shadow-lg hover:border-[var(--primary)]/30 transition-all">
-               <div className="flex items-center gap-3">
-                 <div className={`p-2.5 rounded-xl ${tr.type === 'income' ? 'bg-gradient-to-br from-emerald-400/20 to-green-500/20 text-green-500' : 'bg-gradient-to-br from-rose-400/20 to-red-500/20 text-red-500'}`}>
-                   {tr.type === 'income' ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+            <div key={tr.id} className="group flex items-center justify-between p-2.5 md:p-4 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg md:rounded-xl shadow-sm hover:shadow-md transition-all">
+               <div className="flex items-center gap-2 md:gap-3">
+                 <div className={`p-1.5 md:p-2 rounded-full ${tr.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                   {tr.type === 'income' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                  </div>
                  <div className="min-w-0">
-                   <p className="font-bold text-sm text-[var(--text-main)] truncate">{tr.description}</p>
-                   <p className="text-xs text-[var(--text-muted)] flex items-center gap-1">
-                     <CalendarDays size={10} />
-                     {tr.displayDate || 'Today'}
-                   </p>
+                   <p className="font-bold text-xs md:text-sm text-[var(--text-main)] truncate">{tr.description}</p>
+                   <p className="text-[10px] md:text-xs text-[var(--text-muted)]">{tr.displayDate || 'Today'}</p>
                  </div>
                </div>
-               <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
-                 <p className={`font-mono font-bold text-base ${tr.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                   {tr.type === 'income' ? '+' : '-'}₹{formatIndianNumber(tr.amount)}
+               <div className="text-right flex-shrink-0">
+                 <p className={`font-mono font-bold text-sm md:text-base ${tr.type === 'income' ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                   {tr.type === 'income' ? '+' : '-'}₹{tr.amount}
                  </p>
-                 <button 
-                   onClick={() => deleteTrans(tr.id)} 
-                   className="text-xs text-[var(--text-muted)] hover:text-red-500 transition-colors md:opacity-0 md:group-hover:opacity-100 flex items-center gap-1"
-                 >
-                   <Trash2 size={10} />
+                 <button onClick={() => deleteTrans(tr.id)} className="text-[10px] text-[var(--text-muted)] underline md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                    {t('delete')}
                  </button>
                </div>
@@ -3343,224 +3137,210 @@ function CalculatorView({ user, db, appId, t, lang }) {
   
   return (
     <div className="w-full md:max-w-4xl md:mx-auto space-y-4 md:space-y-6">
-      {/* Header - Theme Aware */}
-      <div className="bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white p-5 md:p-8 rounded-2xl shadow-lg border border-white/10">
-        <h2 className="text-2xl md:text-3xl font-bold mb-2 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-white/20 backdrop-blur-sm">
-            <Calculator size={28} />
-          </div>
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white p-4 md:p-6 rounded-2xl shadow-lg">
+        <h2 className="text-2xl font-bold mb-1 flex items-center gap-2">
+          <Calculator size={28} />
           {lang === 'en' ? 'Loan & Subsidy Calculator' : 'ऋण और सब्सिडी कैलकुलेटर'}
         </h2>
-        <p className="opacity-90 text-sm md:text-base max-w-lg">
-          {lang === 'en' ? 'Quickly estimate KCC credit limits, monthly EMI payments, and government equipment subsidies.' : 'जल्दी से केसीसी क्रेडिट सीमा, मासिक ईएमआई भुगतान और सरकारी उपकरण सब्सिडी का अनुमान लगाएं।'}
+        <p className="opacity-90 text-sm">
+          {lang === 'en' ? 'Calculate KCC limits, EMI, and subsidies' : 'केसीसी सीमा, ईएमआई और सब्सिडी की गणना करें'}
         </p>
       </div>
       
-      {/* Calculator Type Selector - Theme Aware */}
-      <div className="flex gap-2 p-1 bg-[var(--bg-input)] rounded-2xl border border-[var(--border)] overflow-x-auto flex-nowrap scrollbar-hide">
-        {[
-          { id: 'kcc', labelE: 'KCC Limit', labelH: 'केसीसी सीमा', icon: Wallet },
-          { id: 'emi', labelE: 'EMI', labelH: 'ईएमआई', icon: TrendingUp },
-          { id: 'subsidy', labelE: 'Subsidy', labelH: 'सब्सिडी', icon: Leaf }
-        ].map(type => (
-          <button
-            key={type.id}
-            onClick={() => setCalculatorType(type.id)}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 px-2 rounded-xl font-bold text-xs md:text-sm transition-all ${
-              calculatorType === type.id 
-                ? 'bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white shadow-md' 
-                : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-glass)]'
-            }`}
-          >
-            <type.icon size={16} className="hidden sm:inline" />
-            {lang === 'en' ? type.labelE : type.labelH}
-          </button>
-        ))}
+      {/* Calculator Type Selector */}
+      <div className="flex gap-3">
+        <button
+          onClick={() => setCalculatorType('kcc')}
+          className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all ${calculatorType === 'kcc' ? 'bg-blue-500 text-white shadow-lg' : 'bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border)]'}`}
+        >
+          {lang === 'en' ? 'KCC Limit' : 'केसीसी सीमा'}
+        </button>
+        <button
+          onClick={() => setCalculatorType('emi')}
+          className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all ${calculatorType === 'emi' ? 'bg-purple-500 text-white shadow-lg' : 'bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border)]'}`}
+        >
+          {lang === 'en' ? 'EMI' : 'ईएमआई'}
+        </button>
+        <button
+          onClick={() => setCalculatorType('subsidy')}
+          className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all ${calculatorType === 'subsidy' ? 'bg-green-500 text-white shadow-lg' : 'bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border)]'}`}
+        >
+          {lang === 'en' ? 'Subsidy' : 'सब्सिडी'}
+        </button>
       </div>
       
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-8 shadow-[var(--shadow-card)]">
-        {/* KCC Calculator */}
-        {calculatorType === 'kcc' && (
-          <div className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="text-sm font-bold text-[var(--text-muted)] mb-2 block flex items-center gap-2">
-                  <Leaf size={14} className="text-[var(--primary)]" />
-                  {lang === 'en' ? 'Land Area (Hectares)' : 'भूमि क्षेत्र (हेक्टेयर)'}
-                </label>
-                <input
-                  type="number"
-                  value={landArea}
-                  onChange={(e) => setLandArea(e.target.value)}
-                  className="w-full p-3.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)] outline-none"
-                  placeholder="0.0"
-                />
+      {/* KCC Calculator */}
+      {calculatorType === 'kcc' && (
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 space-y-6">
+          <div>
+            <label className="text-sm font-bold text-[var(--text-muted)] mb-2 block">
+              {lang === 'en' ? 'Land Area (Hectares)' : 'भूमि क्षेत्र (हेक्टेयर)'}
+            </label>
+            <input
+              type="number"
+              value={landArea}
+              onChange={(e) => setLandArea(e.target.value)}
+              className="w-full p-3 rounded-xl bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-main)]"
+              placeholder="0.0"
+            />
+          </div>
+          
+          <div>
+            <label className="text-sm font-bold text-[var(--text-muted)] mb-2 block">
+              {lang === 'en' ? 'Crop Type' : 'फसल प्रकार'}
+            </label>
+            <select
+              value={cropType}
+              onChange={(e) => setCropType(e.target.value)}
+              className="w-full p-3 rounded-xl bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-main)]"
+            >
+              <option value="cereal">{lang === 'en' ? 'Cereals (Wheat, Rice)' : 'अनाज (गेहूं, धान)'}</option>
+              <option value="cash">{lang === 'en' ? 'Cash Crops (Cotton, Sugarcane)' : 'नकदी फसल (कपास, गन्ना)'}</option>
+              <option value="horticulture">{lang === 'en' ? 'Horticulture' : 'बागवानी'}</option>
+            </select>
+          </div>
+          
+          <button
+            onClick={calculateKCC}
+            className="w-full py-4 bg-blue-500 text-white rounded-xl font-bold hover:bg-blue-600 transition-colors"
+          >
+            {lang === 'en' ? 'Calculate KCC Limit' : 'केसीसी सीमा की गणना करें'}
+          </button>
+          
+          {kccLimit > 0 && (
+            <div className="p-4 md:p-6 rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-2 border-blue-500">
+              <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">{lang === 'en' ? 'Your KCC Limit' : 'आपकी केसीसी सीमा'}</p>
+              <p className="text-3xl md:text-4xl font-bold text-blue-600">₹{kccLimit.toLocaleString('en-IN')}</p>
+              <p className="text-xs text-[var(--text-muted)] mt-2">
+                {lang === 'en' ? 'Based on' : 'आधारित'} {cropType === 'cereal' ? '₹1.6L' : cropType === 'cash' ? '₹2L' : '₹1.8L'} {lang === 'en' ? 'per hectare' : 'प्रति हेक्टेयर'}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* EMI Calculator */}
+      {calculatorType === 'emi' && (
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 space-y-6">
+          <div>
+            <label className="text-sm font-bold text-[var(--text-muted)] mb-2 block">
+              {lang === 'en' ? 'Loan Amount (₹)' : 'ऋण राशि (₹)'}
+            </label>
+            <input
+              type="number"
+              value={loanAmount}
+              onChange={(e) => setLoanAmount(e.target.value)}
+              className="w-full p-3 rounded-xl bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-main)]"
+              placeholder="100000"
+            />
+          </div>
+          
+          <div>
+            <label className="text-sm font-bold text-[var(--text-muted)] mb-2 block">
+              {lang === 'en' ? 'Interest Rate (% per year)' : 'ब्याज दर (% प्रति वर्ष)'}
+            </label>
+            <input
+              type="number"
+              value={interestRate}
+              onChange={(e) => setInterestRate(e.target.value)}
+              className="w-full p-3 rounded-xl bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-main)]"
+              placeholder="7"
+              step="0.1"
+            />
+          </div>
+          
+          <div>
+            <label className="text-sm font-bold text-[var(--text-muted)] mb-2 block">
+              {lang === 'en' ? 'Tenure (Months)' : 'अवधि (महीने)'}
+            </label>
+            <input
+              type="number"
+              value={tenure}
+              onChange={(e) => setTenure(e.target.value)}
+              className="w-full p-3 rounded-xl bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-main)]"
+              placeholder="12"
+            />
+          </div>
+          
+          <button
+            onClick={calculateEMI}
+            className="w-full py-4 bg-purple-500 text-white rounded-xl font-bold hover:bg-purple-600 transition-colors"
+          >
+            {lang === 'en' ? 'Calculate EMI' : 'ईएमआई की गणना करें'}
+          </button>
+          
+          {emi > 0 && (
+            <div className="space-y-3">
+              <div className="p-6 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-2 border-purple-500">
+                <p className="text-sm text-purple-700 dark:text-purple-300 mb-2">{lang === 'en' ? 'Monthly EMI' : 'मासिक ईएमआई'}</p>
+                <p className="text-4xl font-bold text-purple-600">₹{emi.toLocaleString('en-IN')}</p>
               </div>
               
-              <div>
-                <label className="text-sm font-bold text-[var(--text-muted)] mb-2 block flex items-center gap-2">
-                  <TrendingUp size={14} className="text-[var(--primary)]" />
-                  {lang === 'en' ? 'Crop Type' : 'फसल प्रकार'}
-                </label>
-                <select
-                  value={cropType}
-                  onChange={(e) => setCropType(e.target.value)}
-                  className="w-full p-3.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)] outline-none"
-                >
-                  <option value="cereal">{lang === 'en' ? 'Cereals (Wheat, Rice)' : 'अनाज (गेहूं, धान)'}</option>
-                  <option value="cash">{lang === 'en' ? 'Cash Crops (Cotton, Sugarcane)' : 'नकदी फसल (कपास, गन्ना)'}</option>
-                  <option value="horticulture">{lang === 'en' ? 'Horticulture' : 'बागवानी'}</option>
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-4 rounded-xl bg-[var(--bg-input)]">
+                  <p className="text-xs text-[var(--text-muted)] mb-1">{lang === 'en' ? 'Total Payment' : 'कुल भुगतान'}</p>
+                  <p className="text-xl font-bold text-[var(--text-main)]">₹{(emi * parseInt(tenure)).toLocaleString('en-IN')}</p>
+                </div>
+                <div className="p-4 rounded-xl bg-[var(--bg-input)]">
+                  <p className="text-xs text-[var(--text-muted)] mb-1">{lang === 'en' ? 'Total Interest' : 'कुल ब्याज'}</p>
+                  <p className="text-xl font-bold text-red-600">₹{totalInterest.toLocaleString('en-IN')}</p>
+                </div>
               </div>
             </div>
-            
-            <button
-              onClick={calculateKCC}
-              className="w-full py-4 bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white rounded-xl font-bold hover:opacity-90 transition-all shadow-lg shadow-[var(--primary)]/20"
-            >
-              {lang === 'en' ? 'Calculate KCC Limit' : 'केसीसी सीमा की गणना करें'}
-            </button>
-            
-            {kccLimit > 0 && (
-              <div className="p-6 rounded-2xl bg-gradient-to-br from-[var(--primary)]/10 to-[var(--secondary)]/10 border-2 border-[var(--primary)]/30 animate-in zoom-in-95 duration-300">
-                <p className="text-sm font-bold text-[var(--primary)] mb-2 uppercase tracking-wide">{lang === 'en' ? 'Your Approved Limit' : 'आपकी स्वीकृत सीमा'}</p>
-                <p className="text-4xl md:text-5xl font-extrabold text-[var(--text-main)] mb-3">₹{kccLimit.toLocaleString('en-IN')}</p>
-                <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] bg-[var(--bg-card)]/50 p-2 rounded-lg border border-[var(--border)] w-fit">
-                  <Sparkles size={12} className="text-amber-500" />
-                  <span>
-                    {lang === 'en' ? 'Based on' : 'आधारित'} {cropType === 'cereal' ? '₹1.6L' : cropType === 'cash' ? '₹2L' : '₹1.8L'} {lang === 'en' ? 'per hectare' : 'प्रति हेक्टेयर'}
-                  </span>
-                </div>
-              </div>
-            )}
+          )}
+        </div>
+      )}
+      
+      {/* Subsidy Calculator */}
+      {calculatorType === 'subsidy' && (
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 space-y-6">
+          <div>
+            <label className="text-sm font-bold text-[var(--text-muted)] mb-2 block">
+              {lang === 'en' ? 'Equipment/Machine Cost (₹)' : 'उपकरण/मशीन लागत (₹)'}
+            </label>
+            <input
+              type="number"
+              value={equipmentCost}
+              onChange={(e) => setEquipmentCost(e.target.value)}
+              className="w-full p-3 rounded-xl bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-main)]"
+              placeholder="50000"
+            />
           </div>
-        )}
-        
-        {/* EMI Calculator */}
-        {calculatorType === 'emi' && (
-          <div className="space-y-6">
-            <div className="grid md:grid-cols-3 gap-6">
-              <div>
-                <label className="text-sm font-bold text-[var(--text-muted)] mb-2 block">
-                  {lang === 'en' ? 'Loan Amount (₹)' : 'ऋण राशि (₹)'}
-                </label>
-                <input
-                  type="number"
-                  value={loanAmount}
-                  onChange={(e) => setLoanAmount(e.target.value)}
-                  className="w-full p-3.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                  placeholder="100000"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-bold text-[var(--text-muted)] mb-2 block">
-                  {lang === 'en' ? 'Interest Rate (%)' : 'ब्याज दर (%)'}
-                </label>
-                <input
-                  type="number"
-                  value={interestRate}
-                  onChange={(e) => setInterestRate(e.target.value)}
-                  className="w-full p-3.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                  placeholder="7"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-bold text-[var(--text-muted)] mb-2 block">
-                  {lang === 'en' ? 'Months' : 'महीने'}
-                </label>
-                <input
-                  type="number"
-                  value={tenure}
-                  onChange={(e) => setTenure(e.target.value)}
-                  className="w-full p-3.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                  placeholder="12"
-                />
-              </div>
+          
+          <div>
+            <label className="text-sm font-bold text-[var(--text-muted)] mb-2 block">
+              {lang === 'en' ? 'Category' : 'श्रेणी'}
+            </label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full p-3 rounded-xl bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-main)]"
+            >
+              <option value="general">{lang === 'en' ? 'General (30%)' : 'सामान्य (30%)'}</option>
+              <option value="obc">{lang === 'en' ? 'OBC (40%)' : 'ओबीसी (40%)'}</option>
+              <option value="sc_st">{lang === 'en' ? 'SC/ST (50%)' : 'अनुसूचित जाति/जनजाति (50%)'}</option>
+            </select>
+          </div>
+          
+          <button
+            onClick={calculateSubsidy}
+            className="w-full py-4 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-colors"
+          >
+            {lang === 'en' ? 'Calculate Subsidy' : 'सब्सिडी की गणना करें'}
+          </button>
+          
+          {subsidyAmount > 0 && (
+            <div className="p-6 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-500">
+              <p className="text-sm text-green-700 dark:text-green-300 mb-2">{lang === 'en' ? 'Subsidy Amount' : 'सब्सिडी राशि'}</p>
+              <p className="text-4xl font-bold text-green-600">₹{subsidyAmount.toLocaleString('en-IN')}</p>
+              <p className="text-sm text-[var(--text-main)] mt-3">
+                {lang === 'en' ? 'Your contribution:' : 'आपका योगदान:'} <span className="font-bold">₹{(parseFloat(equipmentCost) - subsidyAmount).toLocaleString('en-IN')}</span>
+              </p>
             </div>
-            
-            <button
-              onClick={calculateEMI}
-              className="w-full py-4 bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white rounded-xl font-bold hover:opacity-90 transition-all shadow-lg shadow-[var(--primary)]/20"
-            >
-              {lang === 'en' ? 'Calculate EMI' : 'ईएमआई की गणना करें'}
-            </button>
-            
-            {emi > 0 && (
-              <div className="space-y-4 animate-in fade-in duration-500">
-                <div className="p-6 rounded-2xl bg-gradient-to-br from-[var(--primary)]/10 to-[var(--secondary)]/10 border-2 border-[var(--primary)]/30">
-                  <p className="text-sm font-bold text-[var(--primary)] mb-2 uppercase tracking-wide">{lang === 'en' ? 'Monthly Payment' : 'मासिक भुगतान'}</p>
-                  <p className="text-4xl md:text-5xl font-extrabold text-[var(--text-main)]">₹{emi.toLocaleString('en-IN')}</p>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-5 rounded-xl bg-[var(--bg-input)] border border-[var(--border)]">
-                    <p className="text-xs font-bold text-[var(--text-muted)] mb-1 uppercase">{lang === 'en' ? 'Total Payment' : 'कुल भुगतान'}</p>
-                    <p className="text-xl md:text-2xl font-extrabold text-[var(--text-main)]">₹{(emi * parseInt(tenure)).toLocaleString('en-IN')}</p>
-                  </div>
-                  <div className="p-5 rounded-xl bg-red-500/5 border border-red-500/20">
-                    <p className="text-xs font-bold text-red-500 mb-1 uppercase">{lang === 'en' ? 'Total Interest' : 'कुल ब्याज'}</p>
-                    <p className="text-xl md:text-2xl font-extrabold text-red-500">₹{totalInterest.toLocaleString('en-IN')}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        
-        {/* Subsidy Calculator */}
-        {calculatorType === 'subsidy' && (
-          <div className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="text-sm font-bold text-[var(--text-muted)] mb-2 block">
-                  {lang === 'en' ? 'Equipment Cost (₹)' : 'उपकरण लागत (₹)'}
-                </label>
-                <input
-                  type="number"
-                  value={equipmentCost}
-                  onChange={(e) => setEquipmentCost(e.target.value)}
-                  className="w-full p-3.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                  placeholder="50000"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-bold text-[var(--text-muted)] mb-2 block">
-                  {lang === 'en' ? 'User Category' : 'उपयोगकर्ता श्रेणी'}
-                </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full p-3.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                >
-                  <option value="general">{lang === 'en' ? 'General (30%)' : 'सामान्य (30%)'}</option>
-                  <option value="obc">{lang === 'en' ? 'OBC (40%)' : 'ओबीसी (40%)'}</option>
-                  <option value="sc_st">{lang === 'en' ? 'SC/ST (50%)' : 'अनुसूचित जाति/जनजाति (50%)'}</option>
-                </select>
-              </div>
-            </div>
-            
-            <button
-              onClick={calculateSubsidy}
-              className="w-full py-4 bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white rounded-xl font-bold hover:opacity-90 transition-all shadow-lg shadow-[var(--primary)]/20"
-            >
-              {lang === 'en' ? 'Calculate Subsidy' : 'सब्सिडी की गणना करें'}
-            </button>
-            
-            {subsidyAmount > 0 && (
-              <div className="p-6 rounded-2xl bg-gradient-to-br from-[var(--primary)]/10 to-[var(--secondary)]/10 border-2 border-[var(--primary)]/30 animate-in slide-in-from-bottom-4 duration-500">
-                <p className="text-sm font-bold text-[var(--primary)] mb-2 uppercase tracking-wide">{lang === 'en' ? 'Eligible Subsidy' : 'पात्र सब्सिडी'}</p>
-                <p className="text-4xl md:text-5xl font-extrabold text-[var(--text-main)] mb-4">₹{subsidyAmount.toLocaleString('en-IN')}</p>
-                <div className="pt-4 border-t border-[var(--border)]">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-[var(--text-muted)]">{lang === 'en' ? 'Your contribution:' : 'आपका योगदान:'}</span>
-                    <span className="font-bold text-[var(--text-main)]">₹{(parseFloat(equipmentCost) - subsidyAmount).toLocaleString('en-IN')}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -3740,23 +3520,14 @@ function SaathiView({ user, profile, db, appId, t, lang }) {
         }
       }
 
-      const systemInstruction = `You are Gramin Saathi, a helpful farming assistant for Indian farmers.
-User: ${profile?.name || 'Farmer'} Ji, Village: ${profile?.village || ''}, Crop: ${profile?.crop || ''}.${weatherContext}
-
-IMPORTANT RULES:
-1. Reply ONLY in ${lang === 'en' ? 'English' : 'Hindi'} - NEVER mix languages
-2. Answer BRIEFLY - short and to the point
-3. Use PLAIN TEXT only - NO asterisks (*), NO hashtags (#), NO markdown
-4. Use simple bullet format with • symbol
-5. Address user as "Ji" respectfully
-
-Good response format:
-Namaste Ji!
-• First point here
-• Second point here
-Tip: One simple action.
-
-Bad (NEVER do this): **Bold text** or ### Headers or long paragraphs.`;
+      const systemInstruction = `You are Gramin Saathi, a helpful, village-friendly financial and agricultural assistant. 
+      User: ${profile?.name}, Village: ${profile?.village}, Crop: ${profile?.crop}.${weatherContext}
+      Language: ${lang === 'en' ? 'English (Simple)' : 'Hindi (Simple)'}.
+      Capabilities:
+      1. Crop Doctor: If user sends an image, diagnose crop diseases or identify objects.
+      2. Finance: Short, metaphor-rich advice on saving/schemes.
+      3. Weather-Aware: Consider current weather in your farming advice.
+      4. Tone: Respectful ("Ji"), practical, encouraging.`;
 
       // Payload Construction
       const contentParts = [];
@@ -3794,120 +3565,52 @@ Bad (NEVER do this): **Bold text** or ### Headers or long paragraphs.`;
     setLoading(false);
   };
 
-  // ✨ TTS using Web Speech API with Android compatibility fixes
+  // ✨ TTS using Web Speech API (Native Browser Support) with Multi-language Support
   const playTTS = (text, index) => {
     if (!('speechSynthesis' in window)) {
-      showToast(lang === 'en' ? 'Text-to-speech not supported' : 'TTS समर्थित नहीं है', 'error');
+      alert(lang === 'en' ? 'Text-to-speech not supported in your browser.' : 'आपके ब्राउज़र में TTS समर्थित नहीं है।');
       return;
     }
     
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
     
-    // Clean text - remove markdown and special characters
-    const cleanText = text
-      .replace(/\*\*/g, '')
-      .replace(/\*/g, '')
-      .replace(/###/g, '')
-      .replace(/##/g, '')
-      .replace(/#/g, '')
-      .replace(/•/g, '. ')
-      .replace(/\n+/g, '. ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    
-    if (!cleanText) {
-      showToast(lang === 'en' ? 'Nothing to speak' : 'बोलने के लिए कुछ नहीं', 'info');
-      return;
-    }
-    
     setAudioPlaying(index);
     
-    const utterance = new SpeechSynthesisUtterance(cleanText);
+    const utterance = new SpeechSynthesisUtterance(text);
     
     // Map language codes to speech synthesis languages
     const langMap = {
       'hi': 'hi-IN',
+      'pa': 'pa-IN', // Punjabi
+      'te': 'te-IN', // Telugu
+      'ta': 'ta-IN', // Tamil
+      'kn': 'kn-IN', // Kannada
+      'ml': 'ml-IN', // Malayalam
+      'gu': 'gu-IN', // Gujarati
+      'mr': 'mr-IN', // Marathi
+      'bn': 'bn-IN', // Bengali
       'en': 'en-IN'
     };
     
     utterance.lang = langMap[lang] || 'en-IN';
-    utterance.rate = 0.9;
+    utterance.rate = 0.85; // Slower for better clarity in regional languages
     utterance.pitch = 1;
     utterance.volume = 1;
     
-    utterance.onend = () => {
-      setAudioPlaying(null);
-      // Clear the keep-alive interval
-      if (window.ttsKeepAlive) {
-        clearInterval(window.ttsKeepAlive);
-        window.ttsKeepAlive = null;
-      }
-    };
-    
-    utterance.onerror = (e) => {
-      console.error('TTS Error:', e);
-      setAudioPlaying(null);
-      if (window.ttsKeepAlive) {
-        clearInterval(window.ttsKeepAlive);
-        window.ttsKeepAlive = null;
-      }
-      // Don't show error for 'interrupted' which is normal when canceling
-      if (e.error !== 'interrupted') {
-        showToast(lang === 'en' ? 'Speech failed. Try again.' : 'बोलने में विफल', 'error');
-      }
-    };
-    
-    // Function to speak with voice selection
-    const speakWithVoice = () => {
-      const voices = window.speechSynthesis.getVoices();
-      const targetLang = langMap[lang] || 'en-IN';
-      
-      // Try to find a matching voice
-      let voice = voices.find(v => v.lang === targetLang);
-      if (!voice) voice = voices.find(v => v.lang.startsWith(lang));
-      if (!voice) voice = voices.find(v => v.lang.includes(lang));
-      // Fallback to any English voice for Hindi if not available
-      if (!voice && lang === 'hi') voice = voices.find(v => v.lang.startsWith('en'));
-      if (!voice && voices.length > 0) voice = voices[0];
-      
-      if (voice) {
-        utterance.voice = voice;
-      }
-      
-      // Speak
-      window.speechSynthesis.speak(utterance);
-      
-      // Android Chrome workaround: Chrome on Android pauses speech after ~15 seconds
-      // We need to resume it periodically
-      if (/Android/i.test(navigator.userAgent)) {
-        window.ttsKeepAlive = setInterval(() => {
-          if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-            window.speechSynthesis.pause();
-            window.speechSynthesis.resume();
-          } else if (!window.speechSynthesis.speaking) {
-            clearInterval(window.ttsKeepAlive);
-            window.ttsKeepAlive = null;
-          }
-        }, 10000);
-      }
-    };
-    
-    // Wait for voices to load
+    // Try to get a voice for the language
     const voices = window.speechSynthesis.getVoices();
-    if (voices.length === 0) {
-      // Voices not loaded yet, wait for them
-      const voiceWait = setTimeout(() => {
-        speakWithVoice(); // Speak anyway after timeout
-      }, 500);
-      
-      window.speechSynthesis.onvoiceschanged = () => {
-        clearTimeout(voiceWait);
-        speakWithVoice();
-      };
-    } else {
-      speakWithVoice();
+    const preferredVoice = voices.find(v => 
+      v.lang.startsWith(langMap[lang]?.split('-')[0])
+    );
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
     }
+    
+    utterance.onend = () => setAudioPlaying(null);
+    utterance.onerror = () => setAudioPlaying(null);
+    
+    window.speechSynthesis.speak(utterance);
   };
 
   // Mobile history panel state
@@ -4051,7 +3754,7 @@ Bad (NEVER do this): **Bold text** or ### Headers or long paragraphs.`;
                  ? 'bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] text-white rounded-br-none shadow-[var(--primary)]/20' 
                  : 'bg-[var(--bg-input)] text-[var(--text-main)] border border-[var(--border)] rounded-bl-none'
                }`}>
-                 <span className="whitespace-pre-line">{m.text}</span>
+                 {m.text}
                  
                  {/* TTS Button */}
                  {m.role === 'model' && (
@@ -4643,108 +4346,56 @@ function TranslatorView({ lang, user, db, appId }) {
     setOutputText(inputText);
   };
 
-  // Voice Input (Speech-to-Text) with Android compatibility
+  // Voice Input (Speech-to-Text)
   const startVoiceInput = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
-    if (!SpeechRecognition) {
-      showToast(lang === 'en' ? 'Voice not supported. Try Chrome.' : 'वॉयस सपोर्ट नहीं। Chrome ट्राई करें।', 'error');
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert(lang === 'en' ? 'Voice input not supported. Try Chrome/Edge.' : 'वॉयस इनपुट सपोर्ट नहीं है। Chrome/Edge ट्राई करें।');
       return;
     }
     
-    try {
-      const recognition = new SpeechRecognition();
-      
-      const selectedLang = languages.find(l => l.code === fromLang);
-      recognition.lang = selectedLang?.voice || 'en-US';
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.maxAlternatives = 1;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    const selectedLang = languages.find(l => l.code === fromLang);
+    recognition.lang = selectedLang?.voice || 'en-US';
+    recognition.continuous = false;
+    recognition.interimResults = false;
 
-      setIsListening(true);
+    setIsListening(true);
 
-      recognition.onresult = (event) => {
-        const lastResult = event.results[event.results.length - 1];
-        if (lastResult.isFinal) {
-          const transcript = lastResult[0].transcript;
-          if (transcript && transcript.trim()) {
-            setInputText(transcript.trim());
-          }
-        }
-        setIsListening(false);
-      };
-
-      recognition.onerror = (event) => {
-        console.error('Speech error:', event.error);
-        setIsListening(false);
-        if (event.error === 'not-allowed') {
-          showToast(lang === 'en' ? 'Microphone access denied' : 'माइक्रोफोन एक्सेस अस्वीकृत', 'error');
-        } else if (event.error !== 'aborted') {
-          showToast(lang === 'en' ? 'Voice input failed' : 'वॉयस इनपुट विफल', 'error');
-        }
-      };
-
-      recognition.onend = () => setIsListening(false);
-      recognition.start();
-    } catch (err) {
-      console.error('STT error:', err);
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setInputText(transcript);
       setIsListening(false);
-      showToast(lang === 'en' ? 'Could not start voice input' : 'वॉयस इनपुट शुरू नहीं हो सका', 'error');
-    }
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech error:', event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => setIsListening(false);
+    recognition.start();
   };
 
-  // Text-to-Speech with Android compatibility
+  // Text-to-Speech
   const speakText = (text, langCode) => {
     if (!('speechSynthesis' in window)) {
-      showToast(lang === 'en' ? 'TTS not supported' : 'TTS सपोर्ट नहीं है', 'error');
+      alert(lang === 'en' ? 'Text-to-speech not supported.' : 'टेक्स्ट-टू-स्पीच सपोर्ट नहीं है।');
       return;
     }
     
     window.speechSynthesis.cancel();
-    
-    const cleanText = text.replace(/\s+/g, ' ').trim();
-    if (!cleanText) return;
-    
-    const utterance = new SpeechSynthesisUtterance(cleanText);
+    const utterance = new SpeechSynthesisUtterance(text);
     const selectedLang = languages.find(l => l.code === langCode);
     utterance.lang = selectedLang?.voice || 'en-US';
     utterance.rate = 0.9;
     
     setIsSpeaking(true);
-    
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      if (window.ttsKeepAlive) {
-        clearInterval(window.ttsKeepAlive);
-        window.ttsKeepAlive = null;
-      }
-    };
-    
-    utterance.onerror = (e) => {
-      setIsSpeaking(false);
-      if (window.ttsKeepAlive) {
-        clearInterval(window.ttsKeepAlive);
-        window.ttsKeepAlive = null;
-      }
-      if (e.error !== 'interrupted') {
-        showToast(lang === 'en' ? 'Speech failed' : 'बोलने में विफल', 'error');
-      }
-    };
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
     
     window.speechSynthesis.speak(utterance);
-    
-    // Android Chrome workaround
-    if (/Android/i.test(navigator.userAgent)) {
-      window.ttsKeepAlive = setInterval(() => {
-        if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-          window.speechSynthesis.pause();
-          window.speechSynthesis.resume();
-        } else if (!window.speechSynthesis.speaking) {
-          clearInterval(window.ttsKeepAlive);
-          window.ttsKeepAlive = null;
-        }
-      }, 10000);
-    }
   };
 
   // Offline dictionary for common terms
@@ -5640,7 +5291,7 @@ MSP दरें PM-KISAN ऐप पर देखें या 1800-180-1551 प
       
       {/* Compact Tabs */}
       {!selectedPostId && (
-        <div className="flex gap-2 mb-4 overflow-x-auto flex-nowrap pb-1 scrollbar-hide">
+        <div className="flex gap-2 mb-4">
           <button
             onClick={() => setActiveTab('community')}
             className={`flex-1 py-2.5 px-3 rounded-xl font-semibold text-sm transition-all ${
@@ -5755,235 +5406,112 @@ MSP दरें PM-KISAN ऐप पर देखें या 1800-180-1551 प
           {blogPosts.map(post => {
             if (post.id !== selectedPostId) return null;
             return (
-              <article key={post.id} className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden shadow-[var(--shadow-card)]">
-                {/* Hero Image with Gradient Overlay */}
-                <div className="relative">
-                  <img 
-                    src={post.image} 
-                    alt={post.title}
-                    loading="lazy"
-                    className="w-full h-56 md:h-80 object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+              <article key={post.id} className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden shadow-[var(--shadow-card)] p-6">
+                {/* Header */}
+                <div className="mb-6">
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold mb-4 ${post.categoryColor}`}>
+                    {lang === 'en' ? post.category.en : post.category.hi}
+                  </span>
+                  <h1 className="text-3xl font-bold text-[var(--text-main)] mb-4">{post.title}</h1>
                   
-                  {/* Category Badge on Image */}
-                  <div className="absolute top-4 left-4">
-                    <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-bold backdrop-blur-sm ${post.categoryColor}`}>
-                      {lang === 'en' ? post.category.en : post.category.hi}
-                    </span>
-                  </div>
-                  
-                  {/* Listen Button */}
-                  <button
-                    onClick={() => speakPost(post.title + '. ' + post.content)}
-                    className="absolute top-4 right-4 p-3 rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-colors"
-                    title={lang === 'en' ? 'Listen to article' : 'लेख सुनें'}
-                  >
-                    <Volume2 size={20} />
-                  </button>
-                  
-                  {/* Title Overlay */}
-                  <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6">
-                    <h1 className="text-xl md:text-3xl font-bold text-white mb-2 leading-tight">{post.title}</h1>
-                    <div className="flex items-center gap-3 text-white/80 text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-7 h-7 rounded-full ${post.author.color} flex items-center justify-center text-white text-xs font-bold`}>
-                          {post.author.avatar}
-                        </div>
-                        <span>{post.author.name}</span>
-                      </div>
-                      <span>•</span>
-                      <span>{post.date}</span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1"><Clock size={12} /> {post.readTime}</span>
+                  {/* Meta */}
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className={`w-10 h-10 rounded-full ${post.author.color} flex items-center justify-center text-white font-bold`}>
+                      {post.author.avatar}
                     </div>
+                    <div>
+                      <p className="font-medium text-[var(--text-main)]">{post.author.name}</p>
+                      <p className="text-sm text-[var(--text-muted)] flex items-center gap-2">
+                        <span>{post.date}</span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1"><Clock size={12} /> {post.readTime}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Featured Image */}
+                  <div className="relative mb-6">
+                    <img 
+                      src={post.image} 
+                      alt={post.title}
+                      loading="lazy"
+                      className="w-full h-96 object-cover rounded-xl"
+                    />
+                    <button
+                      onClick={() => speakPost(post.title + '. ' + post.content)}
+                      className="absolute top-4 right-4 p-3 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+                      title={lang === 'en' ? 'Listen to article' : 'लेख सुनें'}
+                    >
+                      <Volume2 size={20} />
+                    </button>
                   </div>
                 </div>
 
-                {/* Content Area */}
-                <div className="p-4 md:p-8">
-                  {/* Quick Stats */}
-                  <div className="flex items-center gap-4 mb-6 pb-4 border-b border-[var(--border)]">
-                    <div className="flex items-center gap-1.5 text-sm text-[var(--text-muted)]">
-                      <ThumbsUp size={14} className="text-green-500" />
-                      <span>{post.initialVotes + (likeCounts[post.id] || 0)} {lang === 'en' ? 'likes' : 'पसंद'}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-sm text-[var(--text-muted)]">
-                      <MessageCircle size={14} className="text-blue-500" />
-                      <span>{(comments[post.id] || []).length} {lang === 'en' ? 'comments' : 'टिप्पणियां'}</span>
-                    </div>
-                  </div>
-                  
-                  {/* Article Content - Better formatted */}
-                  <div className="article-content mb-8">
-                    {(() => {
-                      // Pre-process content to group bullet lines together
-                      const lines = post.content.split('\n');
-                      const sections = [];
-                      let currentSection = [];
-                      let inBulletList = false;
-                      
-                      lines.forEach((line, i) => {
-                        const trimmed = line.trim();
-                        const isBullet = trimmed.startsWith('•');
-                        const isHeader = trimmed.match(/^(Key Benefits|मुख्य लाभ|Reference|संदर्भ|How to|कैसे करें|Important|महत्वपूर्ण|To apply|आवेदन)/i);
-                        
-                        if (isBullet) {
-                          if (!inBulletList && currentSection.length > 0) {
-                            sections.push({ type: 'text', content: currentSection.join('\n') });
-                            currentSection = [];
-                          }
-                          inBulletList = true;
-                          currentSection.push(trimmed);
-                        } else if (isHeader) {
-                          if (currentSection.length > 0) {
-                            sections.push({ type: inBulletList ? 'bullets' : 'text', content: currentSection.join('\n') });
-                            currentSection = [];
-                          }
-                          inBulletList = false;
-                          sections.push({ type: 'header', content: trimmed });
-                        } else if (trimmed === '') {
-                          if (currentSection.length > 0) {
-                            sections.push({ type: inBulletList ? 'bullets' : 'text', content: currentSection.join('\n') });
-                            currentSection = [];
-                          }
-                          inBulletList = false;
-                        } else {
-                          if (inBulletList && currentSection.length > 0) {
-                            sections.push({ type: 'bullets', content: currentSection.join('\n') });
-                            currentSection = [];
-                            inBulletList = false;
-                          }
-                          currentSection.push(trimmed);
-                        }
-                      });
-                      
-                      // Push remaining content
-                      if (currentSection.length > 0) {
-                        sections.push({ type: inBulletList ? 'bullets' : 'text', content: currentSection.join('\n') });
-                      }
-                      
-                      // Reference links mapping
-                      const refLinks = {
-                        'Reserve Bank of India': 'https://www.rbi.org.in',
-                        'Ministry of Agriculture': 'https://agricoop.nic.in',
-                        'PM-KISAN': 'https://pmkisan.gov.in',
-                        'Farmers Welfare': 'https://agricoop.nic.in',
-                        'KCC': 'https://www.nabard.org/content.aspx?id=2',
-                        'PMFBY': 'https://pmfby.gov.in',
-                        'FAO': 'https://www.fao.org',
-                        'ICAR': 'https://icar.org.in'
-                      };
-                      
-                      return sections.map((section, idx) => {
-                        // Reference section
-                        if (section.content.match(/^(Reference|संदर्भ)/i)) {
-                          return (
-                            <div key={idx} className="mt-8 p-4 bg-blue-500/10 rounded-xl border border-blue-500/30">
-                              <h4 className="text-sm font-bold text-blue-400 mb-3 flex items-center gap-2">
-                                <BookOpen size={16} />
-                                {lang === 'en' ? 'References & Sources' : 'संदर्भ और स्रोत'}
-                              </h4>
-                              <div className="space-y-2">
-                                {section.content.replace(/^(Reference|संदर्भ):?\s*/i, '').split(/,\s*/).map((ref, i) => {
-                                  const link = Object.entries(refLinks).find(([key]) => ref.includes(key))?.[1];
-                                  return (
-                                    <a 
-                                      key={i}
-                                      href={link || '#'}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 hover:underline transition-colors"
-                                    >
-                                      <ArrowRight size={12} />
-                                      {ref.trim()}
-                                    </a>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        }
-                        
-                        // Header
-                        if (section.type === 'header') {
-                          return (
-                            <h3 key={idx} className="text-lg font-bold text-[var(--text-main)] mt-6 mb-3 flex items-center gap-2">
-                              <span className="w-1 h-6 bg-[var(--primary)] rounded-full"></span>
-                              {section.content.replace(':', '')}
-                            </h3>
-                          );
-                        }
-                        
-                        // Bullet list
-                        if (section.type === 'bullets') {
-                          const items = section.content.split('•').map(s => s.trim()).filter(Boolean);
-                          return (
-                            <ul key={idx} className="space-y-3 my-4 bg-[var(--bg-input)] p-4 rounded-xl border border-[var(--border)]">
-                              {items.map((item, i) => (
-                                <li key={i} className="flex items-start gap-3">
-                                  <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                    <CheckCircle size={12} className="text-green-500" />
-                                  </div>
-                                  <span className="text-sm text-[var(--text-main)] leading-relaxed">{item}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          );
-                        }
-                        
-                        // Regular paragraph
-                        return (
-                          <p key={idx} className="text-base text-[var(--text-muted)] leading-7 mb-4">
-                            {section.content}
-                          </p>
-                        );
-                      });
-                    })()}
+                {/* Content - Expandable */}
+                <div className="prose prose-invert max-w-none mb-8">
+                  <p className="text-base md:text-lg text-[var(--text-muted)] leading-relaxed whitespace-pre-wrap">
+                    {post.content.length > 500 ? (
+                      <>
+                        {post.content.slice(0, 500)}...
+                        <button 
+                          onClick={() => {
+                            const el = document.getElementById(`full-content-${post.id}`);
+                            if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+                          }}
+                          className="text-[var(--primary)] font-medium ml-2 hover:underline"
+                        >
+                          {lang === 'en' ? 'Read more' : 'और पढ़ें'}
+                        </button>
+                        <span id={`full-content-${post.id}`} style={{display: 'none'}}>
+                          {post.content.slice(500)}
+                        </span>
+                      </>
+                    ) : post.content}
+                  </p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-between pt-6 border-t border-[var(--border)]">
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => handleVote(post.id, 1)}
+                      className={`p-2 rounded-lg transition-colors ${votes[post.id] === 1 ? 'bg-green-100 text-green-600' : 'hover:bg-[var(--bg-glass)] text-[var(--text-muted)]'}`}
+                      title={lang === 'en' ? 'Like' : 'पसंद करें'}
+                    >
+                      <ThumbsUp size={20} />
+                    </button>
+                    <span className="text-sm font-medium text-[var(--text-main)] min-w-[45px]">
+                      {post.initialVotes + (likeCounts[post.id] || 0)}
+                    </span>
+                    <button 
+                      onClick={() => handleVote(post.id, -1)}
+                      className={`p-2 rounded-lg transition-colors ${votes[post.id] === -1 ? 'bg-red-100 text-red-600' : 'hover:bg-[var(--bg-glass)] text-[var(--text-muted)]'}`}
+                      title={lang === 'en' ? 'Dislike' : 'नापसंद करें'}
+                    >
+                      <ThumbsDown size={20} />
+                    </button>
                   </div>
 
-                  {/* Action Buttons - Improved */}
-                  <div className="flex flex-wrap items-center justify-between gap-4 pt-6 border-t border-[var(--border)]">
-                    <div className="flex items-center gap-1">
-                      <button 
-                        onClick={() => handleVote(post.id, 1)}
-                        className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 ${votes[post.id] === 1 ? 'bg-green-500 text-white' : 'bg-[var(--bg-input)] hover:bg-green-500/20 text-[var(--text-muted)]'}`}
-                      >
-                        <ThumbsUp size={18} />
-                        <span className="font-medium">{post.initialVotes + (likeCounts[post.id] || 0)}</span>
-                      </button>
-                      <button 
-                        onClick={() => handleVote(post.id, -1)}
-                        className={`p-2 rounded-xl transition-all ${votes[post.id] === -1 ? 'bg-red-500 text-white' : 'bg-[var(--bg-input)] hover:bg-red-500/20 text-[var(--text-muted)]'}`}
-                      >
-                        <ThumbsDown size={18} />
-                      </button>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => handleSave(post.id)}
+                      className={`p-2 rounded-lg transition-colors ${saved[post.id] ? 'bg-[var(--primary)]/20 text-[var(--primary)]' : 'hover:bg-[var(--bg-glass)] text-[var(--text-muted)]'}`}
+                      title={lang === 'en' ? 'Save' : 'सेव करें'}
+                    >
+                      {saved[post.id] ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
+                    </button>
 
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => handleSave(post.id)}
-                        className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 ${saved[post.id] ? 'bg-[var(--primary)] text-white' : 'bg-[var(--bg-input)] hover:bg-[var(--primary)]/20 text-[var(--text-muted)]'}`}
-                      >
-                        {saved[post.id] ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
-                        <span className="hidden sm:inline text-sm font-medium">{lang === 'en' ? 'Save' : 'सेव'}</span>
-                      </button>
-
-                      <button 
-                        onClick={() => {
-                          if (navigator.share) {
-                            navigator.share({ title: post.title, text: post.content.slice(0, 100) });
-                          } else {
-                            navigator.clipboard.writeText(window.location.href);
-                            showToast(lang === 'en' ? 'Link copied!' : 'लिंक कॉपी हो गया!', 'success');
-                          }
-                        }}
-                        className="px-4 py-2 rounded-xl bg-[var(--bg-input)] hover:bg-[var(--primary)]/20 text-[var(--text-muted)] transition-all flex items-center gap-2"
-                      >
-                        <Share2 size={18} />
-                        <span className="hidden sm:inline text-sm font-medium">{lang === 'en' ? 'Share' : 'शेयर'}</span>
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => {
+                        if (navigator.share) {
+                          navigator.share({ title: post.title, text: post.content.slice(0, 100) });
+                        }
+                      }}
+                      className="p-2 rounded-lg hover:bg-[var(--bg-glass)] text-[var(--text-muted)]"
+                      title={lang === 'en' ? 'Share' : 'शेयर करें'}
+                    >
+                      <Share2 size={20} />
+                    </button>
                   </div>
                 </div>
 
@@ -6215,7 +5743,7 @@ MSP दरें PM-KISAN ऐप पर देखें या 1800-180-1551 प
               </div>
 
               {/* Category Filters - Subtle */}
-              <div className="flex gap-2 mb-4 overflow-x-auto pb-2 flex-nowrap scrollbar-hide">
+              <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
                 {[
                   { id: 'all', label: lang === 'en' ? 'All' : 'सभी' },
                   { id: 'loans', label: lang === 'en' ? 'Loans' : 'ऋण', match: ['Loans & Credit', 'Digital Banking'] },
@@ -7445,12 +6973,12 @@ function SeekhoView({ t, lang, user, db, appId }) {
               {lang === 'en' ? 'Your Badges' : 'आपके बैज'} ({badges.length})
             </h3>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide snap-x flex-nowrap">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {badges.map(badge => (
-              <div key={badge.id} className="flex flex-col items-center justify-center p-4 bg-[var(--bg-input)] rounded-2xl min-w-[140px] md:min-w-[160px] border border-[var(--border)] hover:bg-[var(--bg-glass)] transition-all snap-start">
-                <span className="text-5xl mb-3 transform hover:scale-110 transition-transform duration-300">{badge.icon}</span>
-                <span className="font-bold text-xs text-center text-[var(--text-main)] mb-1">{badge.name}</span>
-                <span className="text-[10px] text-center text-[var(--text-muted)] line-clamp-1">{badge.description}</span>
+              <div key={badge.id} className="flex flex-col items-center p-3 bg-[var(--bg-input)] rounded-xl hover:bg-[var(--bg-glass)] transition-colors">
+                <span className="text-4xl mb-2">{badge.icon}</span>
+                <span className="font-bold text-xs text-center text-[var(--text-main)]">{badge.name}</span>
+                <span className="text-[10px] text-center text-[var(--text-muted)] mt-1">{badge.description}</span>
               </div>
             ))}
           </div>
@@ -8469,9 +7997,9 @@ function ProfileView({ user, profile, db, appId, t, loadProfile, lang, fontSize,
             <span className="text-lg">🏆</span>
             {lang === 'en' ? 'Earned Badges' : 'अर्जित बैज'} ({badges.length})
           </h3>
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide flex-nowrap snap-x">
+          <div className="grid grid-cols-3 gap-2">
             {badges.map(badge => (
-              <div key={badge.id} className="flex flex-col items-center p-2.5 bg-[var(--bg-input)] rounded-xl min-w-[85px] border border-[var(--border)] snap-start">
+              <div key={badge.id} className="flex flex-col items-center p-2 bg-[var(--bg-input)] rounded-xl">
                 <span className="text-2xl mb-1">{badge.icon}</span>
                 <span className="text-[10px] font-bold text-center text-[var(--text-main)] leading-tight">{badge.name}</span>
               </div>
