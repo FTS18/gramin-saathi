@@ -14,7 +14,6 @@ import {
 } from 'lucide-react';
 import { 
   doc, 
-  setDoc, 
   collection, 
   query, 
   orderBy, 
@@ -22,6 +21,7 @@ import {
   getDocs, 
   onSnapshot 
 } from 'firebase/firestore';
+import { secureSetDoc } from '../../lib/secure-storage';
 import { generateDummyTransactions } from '../../lib/app-utils';
 
 export function HomeView({ user, profile, db, appId, t, lang, setView }: any) {
@@ -32,13 +32,14 @@ export function HomeView({ user, profile, db, appId, t, lang, setView }: any) {
   const [totalIncome, setTotalIncome] = useState(0);
   const [totalExpense, setTotalExpense] = useState(0);
 
-  // Save daily balance snapshot to Firebase
+  // Save daily balance snapshot to Firebase (ENCRYPTED)
   const saveBalanceSnapshot = async (balance: number, income: number, expense: number) => {
     if (!user || !db) return;
     const today = new Date().toISOString().split('T')[0];
     try {
       const snapshotRef = doc(db, `artifacts/${appId}/users/${user.uid}/balance_history/${today}`);
-      await setDoc(snapshotRef, {
+      // This will auto-encrypt balance, income, expense fields
+      await secureSetDoc(snapshotRef, {
         balance,
         income,
         expense,

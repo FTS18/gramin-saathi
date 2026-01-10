@@ -4,13 +4,13 @@ import {
   query, 
   orderBy, 
   onSnapshot, 
-  addDoc, 
   deleteDoc, 
   doc, 
   serverTimestamp,
   getDocs,
   limit
 } from 'firebase/firestore';
+import { secureAddDoc } from '../../lib/secure-storage';
 import { 
   Wallet, 
   TrendingUp, 
@@ -29,12 +29,15 @@ import {
   Share2,
   BarChart3,
   Leaf,
-  Save
+  Save,
+  Shield
 } from 'lucide-react';
 import { db } from '../../lib/firebase-config';
 import { generateDummyTransactions, callGeminiWithQuota, getRemainingQuota } from '../../lib/app-utils';
 import { startVoiceRecognition } from '../../lib/voice-utils';
 import { GlassCard } from '../custom-ui/Cards';
+import { isEncryptionReady } from '../../lib/encryption';
+import { decryptData } from '../../lib/encryption';
 
 export function KhataView({ user, appId, t, lang }: any) {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -42,6 +45,7 @@ export function KhataView({ user, appId, t, lang }: any) {
   const [desc, setDesc] = useState('');
   const [type, setType] = useState('expense');
   const [saving, setSaving] = useState(false);
+  const [encryptionActive, setEncryptionActive] = useState(false);
   
   // Analytics State
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -61,6 +65,16 @@ export function KhataView({ user, appId, t, lang }: any) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDemoMode, setIsDemoMode] = useState(false);
 
+  // Check encryption status
+  useEffect(() => {
+    const checkEncryption = () => {
+      setEncryptionActive(isEncryptionReady());
+    };
+    checkEncryption();
+    const interval = setInterval(checkEncryption, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     // If no user, load dummy demo data
     if (!user) {
@@ -75,8 +89,32 @@ export function KhataView({ user, appId, t, lang }: any) {
       collection(db, 'artifacts', appId, 'users', user.uid, 'khata'),
       orderBy('date', 'desc')
     );
-    const unsub = onSnapshot(q, (snapshot) => {
-      const userTransactions = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+    const unsub = onSnapshot(q, async (snapshot) => {
+      // Decrypt encrypted fields
+      const userTransactions = await Promise.all(
+        snapshot.docs.map(async (doc) => {
+          const data = doc.data();
+          const decrypted: any = { id: doc.id };
+          
+          // Decrypt each field
+          for (const [key, value] of Object.entries(data)) {
+            if (key.endsWith('_encrypted') && data[`${key.replace('_encrypted', '')}_isEncrypted`]) {
+              const originalKey = key.replace('_encrypted', '');
+              try {
+                decrypted[originalKey] = await decryptData(value as string);
+              } catch (e) {
+                console.error(`Failed to decrypt ${originalKey}:`, e);
+                decrypted[originalKey] = null;
+              }
+            } else if (!key.endsWith('_isEncrypted')) {
+              decrypted[key] = value;
+            }
+          }
+          
+          return decrypted;
+        })
+      );
+      
       // If user has no transactions, show demo data
       if (userTransactions.length === 0) {
         const demoTransactions = generateDummyTransactions(lang);
@@ -169,7 +207,8 @@ ${lang === 'en' ? 'Transactions' : 'लेनदेन'}: ${filteredTransactions
     if (!amount || !user) return;
     setSaving(true);
     try {
-      await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'khata'), {
+      // This data will be automatically encrypted before storing
+      await secureAddDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'khata'), {
         amount: Number(amount),
         description: desc || (type === 'income' ? 'Income' : 'Expense'),
         type,
@@ -258,10 +297,18 @@ ${lang === 'en' ? 'Transactions' : 'लेनदेन'}: ${filteredTransactions
       
       {/* Input Section */}
       <div className="bg-[var(--bg-card)] p-3 md:p-6 rounded-xl md:rounded-2xl shadow-[var(--shadow-card)] border border-[var(--border)]">
-        <h3 className="font-bold text-sm md:text-lg mb-2 md:mb-4 text-[var(--text-main)] flex items-center gap-2">
-          <Wallet className="text-[var(--primary)]" size={18} />
-          {t('add_new')}
-        </h3>
+        <div className="flex items-center justify-between mb-2 md:mb-4">
+          <h3 className="font-bold text-sm md:text-lg text-[var(--text-main)] flex items-center gap-2">
+            <Wallet className="text-[var(--primary)]" size={18} />
+            {t('add_new')}
+          </h3>
+          {encryptionActive && (
+            <div className="flex items-center gap-1 text-[10px] md:text-xs text-green-500 bg-green-500/10 px-2 py-1 rounded-full">
+              <Shield size={12} />
+              <span className="hidden md:inline">{lang === 'en' ? 'Encrypted' : 'सुरक्षित'}</span>
+            </div>
+          )}
+        </div>
 
         {/* ✨ Magic AI Input Box */}
         <div className="mb-3 md:mb-6 p-2.5 md:p-3 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-900 rounded-lg md:rounded-xl border border-[var(--primary)] border-dashed">

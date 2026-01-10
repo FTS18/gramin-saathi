@@ -18,12 +18,14 @@ import {
   User,
   ChevronDown,
   Wrench,
-  X
+  X,
+  TrendingUp
 } from 'lucide-react';
 
 // Firebase Imports (only what's needed for auth state changes)
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, getDocFromCache } from 'firebase/firestore';
+import { clearEncryption, initEncryption, isEncryptionReady, tryRestoreEncryption } from './lib/encryption';
 
 // Component Imports
 import LandingPage from './components/LandingPage';
@@ -40,6 +42,11 @@ import { CalculatorView } from './components/views/CalculatorView';
 import { TranslatorView } from './components/views/TranslatorView';
 import { CommunityView } from './components/views/CommunityView';
 import { ProfileView } from './components/views/ProfileView';
+import { AnalyticsView } from './components/views/AnalyticsView';
+import { YieldPredictorView } from './components/views/YieldPredictorView';
+import SchemeEligibilityAdvisor from './components/views/SchemeEligibilityAdvisor';
+import InsuranceAdvisor from './components/views/InsuranceAdvisor';
+import LoanRecommender from './components/views/LoanRecommender';
 
 // Custom UI Components
 import { NavItem } from './components/custom-ui/NavigationElements';
@@ -190,6 +197,21 @@ const themeStyles = `
     box-shadow: var(--shadow-glass);
   }
 
+  /* Make buttons use the custom theme primary color */
+  button[class*="bg-primary"] {
+    background-color: var(--primary) !important;
+    color: var(--text-main) !important;
+  }
+  
+  button[class*="bg-primary"]:hover {
+    filter: brightness(0.9);
+  }
+
+  button[class*="bg-primary"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
 
 `;
 
@@ -221,7 +243,7 @@ export default function GraminSaathiOS() {
   const getInitialView = () => {
     const pathname = window.location.pathname.slice(1);
     if (pathname === 'home') return 'dashboard'; // Redirect /home to dashboard
-    const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'profile', 'mandi', 'mausam', 'calculator', 'translator', 'community'];
+    const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'profile', 'mandi', 'mausam', 'calculator', 'translator', 'community', 'analytics', 'yield-predictor', 'scheme-advisor', 'insurance-advisor', 'loan-recommender'];
     if (validViews.includes(pathname)) return pathname;
     return 'onboarding';
   };
@@ -240,10 +262,25 @@ export default function GraminSaathiOS() {
 
   // Initialize Auth
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, (u) => {
+    const unsubAuth = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUser(u);
         loadProfile(u.uid);
+        
+        // Auto-initialize encryption for persistent sessions
+        // Try to restore from storage first (works cross-device for UID-based encryption)
+        if (!isEncryptionReady()) {
+          try {
+            const restored = await tryRestoreEncryption(u.uid);
+            if (!restored) {
+              // Fallback: Use UID as password
+              await initEncryption(u.uid, u.uid);
+            }
+            console.log('Encryption initialized for existing session');
+          } catch (error) {
+            console.warn('Could not initialize encryption:', error);
+          }
+        }
       } else {
         setUser(null);
         setProfile(null);
@@ -279,7 +316,7 @@ export default function GraminSaathiOS() {
     
     if (pathname === 'home') { setCurrentView('dashboard'); window.history.replaceState(null, '', '/dashboard'); return; }
     
-    const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'profile', 'mandi', 'mausam', 'calculator', 'translator', 'community'];
+    const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'profile', 'mandi', 'mausam', 'calculator', 'translator', 'community', 'analytics', 'yield-predictor', 'scheme-advisor', 'insurance-advisor', 'loan-recommender'];
     if (validViews.includes(pathname)) setCurrentView(pathname);
   }, [user]);
 
@@ -390,6 +427,8 @@ export default function GraminSaathiOS() {
     };
 
     const handleLogout = async () => {
+      // Clear encryption keys before logout
+      clearEncryption();
       await signOut(auth);
       setUser(null);
       setProfile(null);
@@ -493,8 +532,17 @@ export default function GraminSaathiOS() {
               <NavItem active={currentView === 'yojana'} onClick={() => handleViewChange('yojana')} icon={ShieldCheck} label={t('nav_yojana')} />
               <NavItem active={currentView === 'community'} onClick={() => handleViewChange('community')} icon={MessageCircle} label={lang === 'en' ? 'Community' : 'समुदाय'} />
               <NavItem active={currentView === 'seekho'} onClick={() => handleViewChange('seekho')} icon={BookOpen} label={t('nav_seekho')} />
+              <NavItem active={currentView === 'analytics'} onClick={() => handleViewChange('analytics')} icon={TrendingUp} label={lang === 'en' ? 'Analytics' : 'विश्लेषण'} />
+              <NavItem active={currentView === 'yield-predictor'} onClick={() => handleViewChange('yield-predictor')} icon={Sprout} label={lang === 'en' ? 'Yield Predictor' : 'उपज भविष्यवक्ता'} />
               
-            </nav>
+              {/* NEW AI Advisors */}
+              <div className="border-t border-[var(--border)] pt-3">
+                <p className="text-xs font-bold text-[var(--text-muted)] px-3 mb-2 uppercase">{lang === 'en' ? 'AI Advisors' : 'AI सलाहकार'}</p>
+                <NavItem active={currentView === 'scheme-advisor'} onClick={() => handleViewChange('scheme-advisor')} icon={ShieldCheck} label={lang === 'en' ? 'Schemes' : 'योजनाएं'} />
+                <NavItem active={currentView === 'insurance-advisor'} onClick={() => handleViewChange('insurance-advisor')} icon={ShieldCheck} label={lang === 'en' ? 'Insurance' : 'बीमा'} />
+                <NavItem active={currentView === 'loan-recommender'} onClick={() => handleViewChange('loan-recommender')} icon={Wallet} label={lang === 'en' ? 'Loans' : 'ऋण'} />
+              </div>
+              </nav>
 
             <div className="p-4 border-t border-[var(--border)] space-y-3 bg-[var(--bg-card)] shrink-0">
               <IdentityMiniCard profile={profile} onClick={() => handleViewChange('profile')} t={t} />
@@ -525,6 +573,11 @@ export default function GraminSaathiOS() {
                {currentView === 'mausam' && <WeatherView t={t} lang={lang} setView={handleViewChange} profile={profile} />}
                {currentView === 'translator' && <TranslatorView lang={lang} user={user} db={db} appId={appId} />}
                {currentView === 'community' && <CommunityView lang={lang} user={user} db={db} appId={appId} profile={profile} />}
+               {currentView === 'analytics' && <AnalyticsView lang={lang} t={t} />}
+               {currentView === 'yield-predictor' && <YieldPredictorView lang={lang} t={t} />}
+               {currentView === 'scheme-advisor' && <SchemeEligibilityAdvisor lang={lang} t={t} />}
+               {currentView === 'insurance-advisor' && <InsuranceAdvisor lang={lang} t={t} />}
+               {currentView === 'loan-recommender' && <LoanRecommender lang={lang} t={t} />}
                {currentView === 'profile' && <ProfileView user={user} profile={profile} db={db} appId={appId} t={t} loadProfile={loadProfile} lang={lang} fontSize={fontSize} setFontSize={setFontSize} />}
             </div>
           </main>

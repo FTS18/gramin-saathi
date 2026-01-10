@@ -11,6 +11,17 @@ import {
 } from 'firebase/auth';
 import { Eye, EyeOff, Loader, Chrome } from 'lucide-react';
 import { auth } from '../../lib/firebase-config';
+import { initEncryption } from '../../lib/encryption';
+
+// Check if encryption was previously initialized with different password
+const checkPasswordMismatch = (userId: string, password: string): boolean => {
+  const storedHash = localStorage.getItem(`enc_${userId}`);
+  if (!storedHash) return false;
+  
+  // Simple hash check (not cryptographically secure, just for warning)
+  const newHash = btoa(password + userId);
+  return storedHash !== newHash && storedHash !== btoa(userId + userId); // Allow UID-based key
+};
 
 export function AuthView({ onLogin, t, lang, toggleLang }: { onLogin: () => void, t: any, lang: string, toggleLang: () => void }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -21,6 +32,7 @@ export function AuthView({ onLogin, t, lang, toggleLang }: { onLogin: () => void
   const [error, setError] = useState('');
   const [resetSent, setResetSent] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [passwordWarning, setPasswordWarning] = useState('');
 
   useEffect(() => {
     const savedEmail = localStorage.getItem('remember_email');
@@ -45,9 +57,22 @@ export function AuthView({ onLogin, t, lang, toggleLang }: { onLogin: () => void
       }
 
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        
+        // Warn if different password detected
+        if (checkPasswordMismatch(userCredential.user.uid, password)) {
+          setPasswordWarning(lang === 'en' 
+            ? '⚠️ Different password detected. Previous encrypted data may be unreadable on this device.'
+            : '⚠️ अलग पासवर्ड का पता चला। पिछला एन्क्रिप्टेड डेटा इस डिवाइस पर अपठनीय हो सकता है।'
+          );
+        }
+        
+        // Initialize encryption with user's password
+        await initEncryption(userCredential.user.uid, password);
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        // Initialize encryption for new user
+        await initEncryption(userCredential.user.uid, password);
       }
       onLogin(); 
     } catch (err: any) {
@@ -66,7 +91,9 @@ export function AuthView({ onLogin, t, lang, toggleLang }: { onLogin: () => void
     setError('');
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      // For Google auth, use UID as password (user won't see it)
+      await initEncryption(result.user.uid, result.user.uid);
       onLogin();
     } catch (err: any) {
       console.error(err);
@@ -132,6 +159,12 @@ export function AuthView({ onLogin, t, lang, toggleLang }: { onLogin: () => void
         {error && (
           <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200 text-sm text-center">
             {error}
+          </div>
+        )}
+
+        {passwordWarning && (
+          <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500/50 rounded-xl text-yellow-200 text-xs text-center">
+            {passwordWarning}
           </div>
         )}
 
