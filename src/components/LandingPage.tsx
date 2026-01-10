@@ -32,9 +32,11 @@ interface LandingPageProps {
   toggleLang: () => void;
   onFeatureClick?: (id: string) => void;
   onLogoClick?: () => void;
+  user?: any;
+  onLogout?: () => void;
 }
 
-export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureClick, onLogoClick }: LandingPageProps) {
+export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureClick, onLogoClick, user, onLogout }: LandingPageProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -239,12 +241,21 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
               >
                 {lang === 'en' ? 'हिंदी' : 'EN'}
               </button>
-              <button 
-                onClick={onGetStarted}
-                className="px-5 py-2 bg-[#c8e038] text-[#0a1f1a] text-sm font-semibold rounded-lg hover:bg-[#d4ea4d] transition-all"
-              >
-                {lang === 'en' ? 'Get Started' : 'शुरू करें'}
-              </button>
+              {user && onLogout ? (
+                <button 
+                  onClick={onLogout}
+                  className="px-5 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-all"
+                >
+                  {lang === 'en' ? 'Sign Out' : 'साइन आउट'}
+                </button>
+              ) : (
+                <button 
+                  onClick={onGetStarted}
+                  className="px-5 py-2 bg-[#c8e038] text-[#0a1f1a] text-sm font-semibold rounded-lg hover:bg-[#d4ea4d] transition-all"
+                >
+                  {lang === 'en' ? 'Get Started' : 'शुरू करें'}
+                </button>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -314,7 +325,7 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
               </p>
 
               {/* CTAs */}
-              <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-4 mb-6 sm:mb-10 justify-center lg:justify-start">
+              <div className="relative z-20 flex flex-col sm:flex-row gap-2.5 sm:gap-4 mb-6 sm:mb-10 justify-center lg:justify-start">
                 <button 
                   onClick={onGetStarted}
                   className="group px-5 py-2.5 sm:px-6 sm:py-3 bg-[#c8e038] text-[#0a1f1a] font-semibold rounded-xl hover:bg-[#d4ea4d] active:scale-95 transition-all flex items-center justify-center gap-2 select-none cursor-pointer no-underline border-none outline-none"

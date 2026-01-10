@@ -264,11 +264,23 @@ export default function GraminSaathiOS() {
   // Sync currentView with URL
   useEffect(() => {
     const pathname = window.location.pathname.slice(1);
+    
+    // Handle /login route
+    if (pathname === 'login') {
+      if (!user) setShowAuth(true);
+      return;
+    }
+    
+    // Handle / root route - show landing page to everyone
+    if (pathname === '') {
+      setCurrentView('landing');
+      return;
+    }
+    
     if (pathname === 'home') { setCurrentView('dashboard'); window.history.replaceState(null, '', '/dashboard'); return; }
     
     const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'profile', 'mandi', 'mausam', 'calculator', 'translator', 'community'];
     if (validViews.includes(pathname)) setCurrentView(pathname);
-    else if (pathname === '') setCurrentView(user ? 'dashboard' : 'landing');
   }, [user]);
 
   useEffect(() => {
@@ -349,26 +361,76 @@ export default function GraminSaathiOS() {
   );
 
   // Main Render Switch
-  if ((!user && !showAuth) || currentView === 'landing') {
+  if (!user && showAuth) {
+    return (
+      <>
+        <style>{themeStyles}</style>
+        <AuthView onLogin={() => { setShowAuth(false); window.history.replaceState(null, '', '/dashboard'); }} t={t} lang={lang} toggleLang={toggleLang} />
+      </>
+    );
+  }
+
+  if (currentView === 'landing') {
+    const handleLandingGetStarted = () => {
+      if (user) {
+        handleViewChange('dashboard');
+      } else {
+        setShowAuth(true);
+        window.history.pushState(null, '', '/login');
+      }
+    };
+
+    const handleLandingFeatureClick = (id) => {
+      if (user) {
+        handleViewChange(id);
+      } else {
+        setShowAuth(true);
+        window.history.pushState(null, '', '/login');
+      }
+    };
+
+    const handleLogout = async () => {
+      await signOut(auth);
+      setUser(null);
+      setProfile(null);
+      setCurrentView('landing');
+      window.history.replaceState(null, '', '/');
+    };
+
     return (
       <>
         <style>{themeStyles}</style>
         <LandingPage 
-          onGetStarted={() => user ? handleViewChange('dashboard') : setShowAuth(true)} 
+          onGetStarted={handleLandingGetStarted} 
           lang={lang} 
           toggleLang={toggleLang} 
-          onFeatureClick={(id) => user ? handleViewChange(id) : setShowAuth(true)}
-          onLogoClick={() => user ? handleViewChange('dashboard') : window.scrollTo({ top: 0, behavior: 'smooth' })}
+          onFeatureClick={handleLandingFeatureClick}
+          onLogoClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          user={user}
+          onLogout={user ? handleLogout : undefined}
         />
       </>
     );
   }
 
-  if (!user && showAuth) {
+  if (!user && !showAuth) {
     return (
       <>
         <style>{themeStyles}</style>
-        <AuthView onLogin={() => setShowAuth(false)} t={t} lang={lang} toggleLang={toggleLang} />
+        <LandingPage 
+          onGetStarted={() => {
+            setShowAuth(true);
+            window.history.pushState(null, '', '/login');
+          }} 
+          lang={lang} 
+          toggleLang={toggleLang} 
+          onFeatureClick={() => {
+            setShowAuth(true);
+            window.history.pushState(null, '', '/login');
+          }}
+          onLogoClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          user={null}
+        />
       </>
     );
   }
@@ -391,8 +453,8 @@ export default function GraminSaathiOS() {
           
           <aside className={`flex flex-col glass fixed left-0 top-0 bottom-0 z-50 transition-all duration-300 ${sidebarOpen ? 'w-80 translate-x-0' : 'w-0 -translate-x-full'} md:relative md:w-72 md:translate-x-0 md:m-4 md:rounded-3xl md:h-[calc(100vh-2rem)] overflow-hidden`}>
             <div className="p-6 flex items-center gap-3 border-b border-[var(--border)] cursor-pointer shrink-0">
-              <img onClick={() => handleViewChange('dashboard')} src="/favicon.svg" alt="Logo" className="w-10 h-10 rounded-xl" />
-              <h1 onClick={() => handleViewChange('dashboard')} className="flex-1 font-bold text-xl text-[var(--text-main)]">Gramin <span className="text-[var(--primary)]">Saathi</span></h1>
+              <img onClick={() => { setCurrentView('landing'); window.history.pushState(null, '', '/'); }} src="/favicon.svg" alt="Logo" className="w-10 h-10 rounded-xl" />
+              <h1 onClick={() => { setCurrentView('landing'); window.history.pushState(null, '', '/'); }} className="flex-1 font-bold text-xl text-[var(--text-main)]">Gramin <span className="text-[var(--primary)]">Saathi</span></h1>
               {/* Mobile close button */}
               <button onClick={() => setSidebarOpen(false)} className="md:hidden p-2 rounded-lg hover:bg-[var(--bg-glass)] text-[var(--text-muted)]">
                 <X size={20} />

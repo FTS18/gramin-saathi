@@ -1,8 +1,18 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getAnalytics } from "firebase/analytics";
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getVertexAI, getGenerativeModel, HarmBlockThreshold, HarmCategory } from '@firebase/vertexai';
+
+// Suppress known harmless Firebase VertexAI registration warnings
+const originalWarn = console.warn;
+console.warn = (...args: any[]) => {
+  const message = args[0]?.toString() || '';
+  if (message.includes('@firebase/vertexai') && message.includes('illegal characters')) {
+    return;
+  }
+  originalWarn.apply(console, args);
+};
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -17,18 +27,15 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 export const auth = getAuth(app);
-export const db = getFirestore(app);
 
-// Enable offline persistence
-if (typeof window !== 'undefined') {
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn('Firestore persistence unavailable: multiple tabs open');
-    } else if (err.code === 'unimplemented') {
-      console.warn('Firestore persistence not supported in this browser');
-    }
-  });
-}
+// Initialize Firestore with modern persistent cache
+export const db = typeof window !== 'undefined' 
+  ? initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    })
+  : getFirestore(app);
 
 export const vertexAI = getVertexAI(app, { location: 'us-central1' });
 export const translationModel = getGenerativeModel(vertexAI, {
