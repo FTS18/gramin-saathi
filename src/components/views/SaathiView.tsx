@@ -66,12 +66,46 @@ export function SaathiView({ user, profile, appId, t, lang }: any) {
   const [chatId, setChatId] = useState<string | null>(null);
   const [chatHistory, setChatHistory] = useState([]);
   const [showMobileHistory, setShowMobileHistory] = useState(false);
+  const [isListening, setIsListening] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   useEffect(scrollToBottom, [messages]);
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = lang === 'en' ? 'en-IN' : 'hi-IN';
+      
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0].transcript)
+          .join('');
+        setInput(transcript);
+      };
+      
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+        if (event.error === 'not-allowed') {
+          alert(lang === 'en' ? 'Please allow microphone access to use voice input' : 'वॉइस इनपुट के लिए माइक्रोफोन एक्सेस की अनुमति दें');
+        }
+      };
+      
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+      
+      recognitionRef.current = recognition;
+    }
+  }, [lang]);
 
   useEffect(() => {
     if (!user) return;
@@ -170,6 +204,23 @@ export function SaathiView({ user, profile, appId, t, lang }: any) {
         setSelectedImage(reader.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleVoiceInput = () => {
+    if (!recognitionRef.current) {
+      alert(lang === 'en' ? 'Voice input is not supported in your browser. Please use Chrome or Edge.' : 'आपके ब्राउज़र में वॉइस इनपुट समर्थित नहीं है। कृपया Chrome या Edge का उपयोग करें।');
+      return;
+    }
+    
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      setInput('');
+      setIsListening(true);
+      recognitionRef.current.lang = lang === 'en' ? 'en-IN' : 'hi-IN';
+      recognitionRef.current.start();
     }
   };
 
@@ -527,12 +578,29 @@ export function SaathiView({ user, profile, appId, t, lang }: any) {
               <Camera size={20} />
             </button>
             <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
+            
+            <button 
+              onClick={handleVoiceInput} 
+              disabled={loading}
+              className={`p-2 rounded-xl transition-all relative ${
+                isListening 
+                  ? 'bg-[var(--primary)] text-black animate-pulse' 
+                  : 'bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--primary)]'
+              }`}
+              title={isListening ? (lang === 'en' ? 'Stop Recording' : 'रिकॉर्डिंग बंद करें') : (lang === 'en' ? 'Voice Input' : 'वॉइस इनपुट')}
+            >
+              <Mic size={20} />
+              {isListening && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+              )}
+            </button>
+            
             <input 
               type="text" 
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSend()}
-              placeholder={t('ai_prompt')}
+              placeholder={isListening ? (lang === 'en' ? 'Listening...' : 'सुन रहा हूं...') : t('ai_prompt')}
               className="flex-1 bg-transparent border-none focus:ring-0 text-sm p-2"
             />
             <button onClick={handleSend} disabled={loading} className="p-3 bg-[var(--primary)] text-black rounded-xl">

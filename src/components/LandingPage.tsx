@@ -23,8 +23,10 @@ import {
   Sun,
   CheckCircle,
   User,
-  Users
+  Users,
+  Sparkles
 } from 'lucide-react';
+import { FloatingActionButton } from './FloatingActionButton';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -34,9 +36,10 @@ interface LandingPageProps {
   onLogoClick?: () => void;
   user?: any;
   onLogout?: () => void;
+  onSaathiClick?: () => void;
 }
 
-export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureClick, onLogoClick, user, onLogout }: LandingPageProps) {
+export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureClick, onLogoClick, user, onLogout, onSaathiClick }: LandingPageProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -632,6 +635,14 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
           </div>
         </div>
       </footer>
+      
+      {/* Floating Action Button for Saathi AI */}
+      {onSaathiClick && (
+        <FloatingActionButton 
+          onClick={onSaathiClick} 
+          lang={lang}
+        />
+      )}
     </div>
   );
 }

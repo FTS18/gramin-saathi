@@ -51,6 +51,7 @@ import LoanRecommender from './components/views/LoanRecommender';
 // Custom UI Components
 import { NavItem } from './components/custom-ui/NavigationElements';
 import { IdentityMiniCard } from './components/views/IdentityMiniCard';
+import { FloatingActionButton } from './components/FloatingActionButton';
 
 // Utility Imports
 import { TRANSLATIONS } from './lib/translations';
@@ -447,6 +448,7 @@ export default function GraminSaathiOS() {
           onLogoClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           user={user}
           onLogout={user ? handleLogout : undefined}
+          onSaathiClick={user ? () => handleViewChange('saathi') : () => { setShowAuth(true); window.history.pushState(null, '', '/login'); }}
         />
       </>
     );
@@ -469,6 +471,7 @@ export default function GraminSaathiOS() {
           }}
           onLogoClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           user={null}
+          onSaathiClick={() => { setShowAuth(true); window.history.pushState(null, '', '/login'); }}
         />
       </>
     );
