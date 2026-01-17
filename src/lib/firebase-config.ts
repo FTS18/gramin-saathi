@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import { getApps, initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
 import {
@@ -7,25 +7,6 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager,
 } from "firebase/firestore";
-import {
-  getVertexAI,
-  getGenerativeModel,
-  HarmBlockThreshold,
-  HarmCategory,
-} from "@firebase/vertexai";
-
-// Suppress known harmless Firebase VertexAI registration warnings
-const originalWarn = console.warn;
-console.warn = (...args: any[]) => {
-  const message = args[0]?.toString() || "";
-  if (
-    message.includes("@firebase/vertexai") &&
-    message.includes("illegal characters")
-  ) {
-    return;
-  }
-  originalWarn.apply(console, args);
-};
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -37,48 +18,27 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-const app = initializeApp(firebaseConfig);
-export const analytics =
-  typeof window !== "undefined" ? getAnalytics(app) : null;
+// Prevent multiple initializations during HMR
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+
+export const analytics = typeof window !== "undefined" ? getAnalytics(app) : null;
 export const auth = getAuth(app);
 
-// Initialize Firestore with modern persistent cache
-export const db =
-  typeof window !== "undefined"
-    ? initializeFirestore(app, {
-        localCache: persistentLocalCache({
-          tabManager: persistentMultipleTabManager(),
-        }),
-      })
-    : getFirestore(app);
+// Initialize Firestore with modern persistent cache (handle HMR re-initialization)
+let firestore;
+if (typeof window !== "undefined") {
+  try {
+    firestore = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    });
+  } catch (e) {
+    firestore = getFirestore(app);
+  }
+} else {
+  firestore = getFirestore(app);
+}
 
-export const vertexAI = getVertexAI(app, { location: "us-central1" });
-export const translationModel = getGenerativeModel(vertexAI, {
-  model: "gemini-2.5-flash",
-  generationConfig: {
-    temperature: 0,
-    topK: 1,
-    candidateCount: 1,
-    maxOutputTokens: 1024,
-  },
-  safetySettings: [
-    {
-      category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-      threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-    },
-    {
-      category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-      threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-    },
-    {
-      category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-      threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-    },
-    {
-      category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-      threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-    },
-  ],
-});
-
+export const db = firestore;
 export default app;

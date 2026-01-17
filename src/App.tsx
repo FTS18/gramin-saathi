@@ -257,6 +257,7 @@ export default function GraminSaathiOS() {
   const [showTour, setShowTour] = useState(false);
   const [tourSteps, setTourSteps] = useState([]);
   const [tourKey, setTourKey] = useState(0); // Used to reset tour
+  const [tourDismissed, setTourDismissed] = useState(() => sessionStorage.getItem('tour_dismissed_session') === 'true');
 
   // Navigation State
   const getInitialView = () => {
@@ -324,11 +325,11 @@ export default function GraminSaathiOS() {
 
   // Auto-show guided tour on first visit
   useEffect(() => {
-    if (user && currentView !== 'landing' && currentView !== 'onboarding' && !hasCompletedTour('dashboard')) {
+    if (user && currentView !== 'landing' && currentView !== 'onboarding' && !hasCompletedTour('dashboard') && !tourDismissed) {
       setTourSteps(getTourSteps(lang));
-      setTimeout(() => setShowTour(true), 1000); // Small delay to let UI render
+      setTimeout(() => setShowTour(true), 1500); // Increased delay
     }
-  }, [user, lang, currentView]);
+  }, [user, lang, currentView, tourDismissed]);
 
   // Sync currentView with URL
   useEffect(() => {
@@ -653,7 +654,8 @@ export default function GraminSaathiOS() {
                 setShowTour(false);
               }}
               onSkip={() => {
-                // Don't mark as completed if skipped - tour will show again on next visit
+                sessionStorage.setItem('tour_dismissed_session', 'true');
+                setTourDismissed(true);
                 setShowTour(false);
               }}
               lang={lang}

@@ -331,6 +331,9 @@ export function SaathiView({ user, profile, appId, t, lang }: any) {
       let compactContext = `User: ${profile?.name || 'Farmer'}, ${profile?.village || 'Village'}, ${profile?.state || 'State'}`;
       if (profile?.crop) compactContext += `, Crop: ${profile.crop}`;
       if (profile?.landSize) compactContext += `, Land: ${profile.landSize}ha`;
+      if (profile?.income) compactContext += `, Income: ₹${profile.income}/yr`;
+      if (profile?.age) compactContext += `, Age: ${profile.age}`;
+      if (profile?.category) compactContext += `, Category: ${profile.category}`;
       
       const weatherCache = localStorage.getItem('weather_cache');
       if (weatherCache) {
@@ -367,15 +370,24 @@ export function SaathiView({ user, profile, appId, t, lang }: any) {
         currentParts.push({ text: "Analyze: crop disease or document summary." });
       }
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      // Use v1 API and move system instruction to prompt for maximum compatibility
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [...history, { role: 'user', parts: currentParts }],
-          systemInstruction: { parts: [{ text: systemInstruction }] },
+          contents: [
+            ...history, 
+            { 
+              role: 'user', 
+              parts: [
+                { text: `SYSTEM INSTRUCTION: ${systemInstruction}\n\nUSER_MESSAGE: ${userMsg || (userImg ? "Analyze this image" : "")}` },
+                ...currentParts.filter(p => !p.text || p.text !== userMsg) // Avoid duplicating the text if it was also in currentParts
+              ] 
+            }
+          ],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 512
+            maxOutputTokens: 1024
           }
         })
       });
@@ -384,6 +396,9 @@ export function SaathiView({ user, profile, appId, t, lang }: any) {
       
       if (!response.ok) {
         console.error('Gemini API Error:', data);
+        if (response.status === 429) {
+          throw new Error(lang === 'hi' ? 'साथी अभी व्यस्त है, कृपया एक मिनट बाद पुनः प्रयास करें।' : 'Saathi is a bit busy right now. Please try again in about a minute.');
+        }
         throw new Error(data.error?.message || `API Error: ${response.status}`);
       }
       
@@ -391,9 +406,9 @@ export function SaathiView({ user, profile, appId, t, lang }: any) {
       
       setMessages(prev => [...prev, { role: 'model', text: reply }]);
       await saveMessageToFirebase(userMsg, reply);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      setMessages(prev => [...prev, { role: 'model', text: "Network error. Please try again." }]);
+      setMessages(prev => [...prev, { role: 'model', text: e.message || (lang === 'hi' ? 'नेटवर्क त्रुटि। कृपया पुनः प्रयास करें।' : "Network error. Please try again.") }]);
     } finally {
       setLoading(false);
     }

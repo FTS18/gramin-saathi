@@ -93,16 +93,18 @@ export const LandingChatbot: React.FC<LandingChatbotProps> = ({ lang }) => {
            जवाब संक्षिप्त (2-3 वाक्य), व्यावहारिक और उत्साहजनक रखें। खेती, सरकारी योजनाओं, मंडी भाव, मौसम और ऐप फीचर्स पर ध्यान दें।`;
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: userMessage }] }],
-            systemInstruction: { parts: [{ text: systemInstruction }] },
+            contents: [{ 
+              role: 'user', 
+              parts: [{ text: `${systemInstruction}\n\nQuestion: ${userMessage}` }] 
+            }],
             generationConfig: {
               temperature: 0.7,
-              maxOutputTokens: 300
+              maxOutputTokens: 1024
             }
           })
         }
