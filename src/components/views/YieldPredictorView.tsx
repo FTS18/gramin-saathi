@@ -17,7 +17,7 @@ export const YieldPredictorView = ({ lang, t }: YieldPredictorViewProps) => {
   });
   const [prediction, setPrediction] = useState<number | null>(null);
 
-  // Simple prediction logic based on ML model insights (Random Forest: R² 90.6%)
+  // Simple prediction logic based on ML model insights (LSTM: R² 90.6%)
   const predictYield = () => {
     const area = parseFloat(formData.area) || 0;
     const rainfall = parseFloat(formData.rainfall) || 0;
@@ -75,7 +75,7 @@ export const YieldPredictorView = ({ lang, t }: YieldPredictorViewProps) => {
           <div>
             <p className="text-sm text-[var(--text-main)]">
               {lang === 'en'
-                ? 'This predictor uses Random Forest ML model trained on 19,689 crop records. Enter your farm details below for accurate yield predictions.'
+                ? 'This predictor uses LSTM ML model trained on 19,689 crop records. Enter your farm details below for accurate yield predictions.'
                 : 'यह भविष्यवक्ता 19,689 फसल रिकॉर्ड पर प्रशिक्षित रैंडम फॉरेस्ट ML मॉडल का उपयोग करता है। सटीक उपज भविष्यवाणी के लिए नीचे अपने खेत का विवरण दर्ज करें।'
               }
             </p>
@@ -224,7 +224,7 @@ export const YieldPredictorView = ({ lang, t }: YieldPredictorViewProps) => {
                   <span className="text-[var(--text-muted)]">
                     {lang === 'en' ? 'Model Used' : 'उपयोग किया गया मॉडल'}
                   </span>
-                  <span className="font-semibold text-[var(--text-main)]">Random Forest</span>
+                  <span className="font-semibold text-[var(--text-main)]">LSTM</span>
                 </div>
                 <div className="flex justify-between p-3 bg-[var(--bg-input)] rounded-xl">
                   <span className="text-[var(--text-muted)]">

@@ -1,6 +1,5 @@
 import pandas as pd
 
-# Financial Literacy Chatbot Dataset - For farmers to learn about money, loans, schemes, insurance
 
 FINANCIAL_LITERACY_QNA = {
     "schemes": [
@@ -168,7 +167,6 @@ FINANCIAL_LITERACY_QNA = {
     ]
 }
 
-# Convert to DataFrame for easier handling
 def load_financial_qa():
     qa_list = []
     for category_name, questions in FINANCIAL_LITERACY_QNA.items():
@@ -186,7 +184,6 @@ def load_financial_qa():
     
     return pd.DataFrame(qa_list)
 
-# Export to CSV
 if __name__ == "__main__":
     df = load_financial_qa()
     df.to_csv('financial_literacy_qna.csv', index=False)
