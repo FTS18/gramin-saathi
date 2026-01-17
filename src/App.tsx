@@ -51,7 +51,7 @@ import LoanRecommender from './components/views/LoanRecommender';
 // Custom UI Components
 import { NavItem } from './components/custom-ui/NavigationElements';
 import { IdentityMiniCard } from './components/views/IdentityMiniCard';
-import { FloatingActionButton } from './components/FloatingActionButton';
+import { VoiceNavigationButton } from './components/VoiceNavigationButton';
 
 // Utility Imports
 import { TRANSLATIONS } from './lib/translations';
@@ -246,7 +246,7 @@ export default function GraminSaathiOS() {
     if (pathname === 'home') return 'dashboard'; // Redirect /home to dashboard
     const validViews = ['dashboard', 'khata', 'yojana', 'saathi', 'seekho', 'profile', 'mandi', 'mausam', 'calculator', 'translator', 'community', 'analytics', 'yield-predictor', 'scheme-advisor', 'insurance-advisor', 'loan-recommender'];
     if (validViews.includes(pathname)) return pathname;
-    return 'onboarding';
+    return 'landing';
   };
   const [currentView, setCurrentView] = useState(getInitialView());
 
@@ -448,7 +448,7 @@ export default function GraminSaathiOS() {
           onLogoClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           user={user}
           onLogout={user ? handleLogout : undefined}
-          onSaathiClick={user ? () => handleViewChange('saathi') : () => { setShowAuth(true); window.history.pushState(null, '', '/login'); }}
+          onNavigate={handleViewChange}
         />
       </>
     );
@@ -471,7 +471,10 @@ export default function GraminSaathiOS() {
           }}
           onLogoClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           user={null}
-          onSaathiClick={() => { setShowAuth(true); window.history.pushState(null, '', '/login'); }}
+          onNavigate={(view) => {
+            setShowAuth(true);
+            window.history.pushState(null, '', '/login');
+          }}
         />
       </>
     );
@@ -584,6 +587,13 @@ export default function GraminSaathiOS() {
                {currentView === 'profile' && <ProfileView user={user} profile={profile} db={db} appId={appId} t={t} loadProfile={loadProfile} lang={lang} fontSize={fontSize} setFontSize={setFontSize} />}
             </div>
           </main>
+          
+          {/* Voice Navigation Button - Available on all authenticated pages */}
+          <VoiceNavigationButton 
+            onNavigate={handleViewChange} 
+            lang={lang}
+            currentView={currentView}
+          />
         </>
       )}
     </div>

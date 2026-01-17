@@ -23,10 +23,10 @@ import {
   Sun,
   CheckCircle,
   User,
-  Users,
-  Sparkles
+  Users
 } from 'lucide-react';
-import { FloatingActionButton } from './FloatingActionButton';
+import { LandingChatbot } from './LandingChatbot';
+import { VoiceNavigationButton } from './VoiceNavigationButton';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -36,10 +36,10 @@ interface LandingPageProps {
   onLogoClick?: () => void;
   user?: any;
   onLogout?: () => void;
-  onSaathiClick?: () => void;
+  onNavigate?: (view: string) => void;
 }
 
-export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureClick, onLogoClick, user, onLogout, onSaathiClick }: LandingPageProps) {
+export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureClick, onLogoClick, user, onLogout, onNavigate }: LandingPageProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -358,64 +358,9 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
               </div>
             </div>
 
-            {/* Right - Feature Cards (Desktop only) */}
+            {/* Right - Interactive Chatbot (Desktop only) */}
             <div className="hidden lg:block">
-              <div className="relative">
-                {/* Main Card */}
-                <div className="bg-[#0d2922]/80 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden group hover:scale-[1.01] transition-transform duration-500">
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
-                  
-                  <div className="flex items-center gap-4 mb-6 relative z-10">
-                    <img src="/favicon.svg" alt="Gramin Saathi" className="w-12 h-12 rounded-2xl shadow-lg border border-white/10" />
-                    <div>
-                      <p className="font-bold text-lg text-white heading-font tracking-tight">Gramin Saathi</p>
-                      <p className="text-xs text-white/50">{lang === 'en' ? 'Your farming partner' : 'आपका खेती साथी'}</p>
-                    </div>
-                  </div>
-                  
-                  {/* Mini Feature List */}
-                  <div className="space-y-3 relative z-10">
-                    {[
-                      { Icon: Mic, text: lang === 'en' ? 'Voice Khata - Track by speaking' : 'वॉइस खाता - बोलकर ट्रैक करें' },
-                      { Icon: Sprout, text: lang === 'en' ? 'AI Crop Advisor - Smart tips' : 'AI फसल सलाह - स्मार्ट टिप्स' },
-                      { Icon: BarChart3, text: lang === 'en' ? 'Live Mandi - Best prices' : 'लाइव मंडी - सबसे अच्छे दाम' }
-                    ].map((item, i) => (
-                      <div key={i} className="flex items-center gap-3 p-4 bg-black/20 rounded-2xl border border-white/5 backdrop-blur-sm group-hover:bg-black/30 transition-colors">
-                        <div className="w-9 h-9 rounded-xl bg-[#c8e038]/20 flex items-center justify-center">
-                          <item.Icon className="w-5 h-5 text-[#c8e038]" />
-                        </div>
-                        <span className="text-sm font-medium text-white/90">{item.text}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Floating Card - Weather */}
-                <div className="absolute -top-4 -right-4 bg-white p-3 rounded-xl shadow-xl">
-                  <div className="flex items-center gap-2">
-                    <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center">
-                      <Sun className="w-5 h-5 text-amber-500" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-gray-800">28°C</p>
-                      <p className="text-[10px] text-gray-500">{lang === 'en' ? 'Good for sowing' : 'बुवाई के लिए अच्छा'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Floating Card - Transaction */}
-                <div className="absolute -bottom-4 -left-4 bg-[#c8e038] p-3 rounded-xl shadow-xl">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-[#0a1f1a]/20 flex items-center justify-center">
-                      <CheckCircle className="w-4 h-4 text-[#0a1f1a]" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-[#0a1f1a]">₹2,500 {lang === 'en' ? 'added' : 'जोड़ा'}</p>
-                      <p className="text-[10px] text-[#0a1f1a]/70">{lang === 'en' ? 'Voice entry' : 'आवाज से'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <LandingChatbot lang={lang} />
             </div>
           </div>
         </div>
@@ -636,11 +581,12 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
         </div>
       </footer>
       
-      {/* Floating Action Button for Saathi AI */}
-      {onSaathiClick && (
-        <FloatingActionButton 
-          onClick={onSaathiClick} 
+      {/* Voice Navigation Button - Available on landing page */}
+      {onNavigate && (
+        <VoiceNavigationButton 
+          onNavigate={onNavigate} 
           lang={lang}
+          currentView="landing"
         />
       )}
     </div>
