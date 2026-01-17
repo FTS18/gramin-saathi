@@ -156,7 +156,6 @@ DATASETS_FOR_FARMERS = {
     }
 }
 
-# AI MODELS TO TRAIN WITH THESE DATASETS
 
 AI_MODELS = {
     "Scheme_Eligibility_Classifier": {
@@ -164,7 +163,7 @@ AI_MODELS = {
         "output": "Eligible scheme IDs + probability score",
         "training_data": "500K+ farmer profiles × schemes",
         "accuracy_target": "95%+",
-        "model_type": "Random Forest / XGBoost",
+        "model_type": "LSTM / XGBoost",
         "languages_supported": 5
     },
     
@@ -210,7 +209,6 @@ AI_MODELS = {
     }
 }
 
-# PHASE-WISE IMPLEMENTATION ROADMAP
 
 IMPLEMENTATION_ROADMAP = {
     "PHASE_1_FOUNDATION": {
@@ -270,7 +268,6 @@ IMPLEMENTATION_ROADMAP = {
     }
 }
 
-# DATA COLLECTION PARTNERS
 
 PARTNER_INSTITUTIONS = {
     "Government": ["Ministry of Agriculture", "RBI", "SEBI", "NABARD", "State Agriculture Departments"],

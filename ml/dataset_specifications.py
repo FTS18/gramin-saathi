@@ -3,15 +3,9 @@ GRAMIN SAATHI - DATASET SPECIFICATIONS & COLLECTION GUIDE
 Complete specifications for all 10 datasets with schema, sources, and integration examples
 """
 
-# ==============================================================================
-# TIER 1: CRITICAL DATASETS (Deploy in Phase 1 - Month 1-2)
-# ==============================================================================
 
 DATASET_SPECS = {
     
-    # ──────────────────────────────────────────────────────────────────────────
-    # DATASET 1: GOVERNMENT SCHEMES DATABASE
-    # ──────────────────────────────────────────────────────────────────────────
     "government_schemes": {
         "priority": "CRITICAL",
         "timeline": "Implement in Week 1",
@@ -71,9 +65,6 @@ DATASET_SPECS = {
         ]
     },
     
-    # ──────────────────────────────────────────────────────────────────────────
-    # DATASET 2: AGRICULTURAL CREDIT PRODUCTS
-    # ──────────────────────────────────────────────────────────────────────────
     "agricultural_credit_products": {
         "priority": "CRITICAL",
         "timeline": "Implement in Week 1",
@@ -128,9 +119,6 @@ DATASET_SPECS = {
         ]
     },
     
-    # ──────────────────────────────────────────────────────────────────────────
-    # DATASET 3: CROP INSURANCE PRODUCTS & CLAIMS DATA
-    # ──────────────────────────────────────────────────────────────────────────
     "crop_insurance_products": {
         "priority": "CRITICAL",
         "timeline": "Implement in Week 2",
@@ -186,9 +174,6 @@ DATASET_SPECS = {
     }
 }
 
-# ==============================================================================
-# TIER 2: HIGH-PRIORITY DATASETS (Phase 1-2, Month 1-4)
-# ==============================================================================
 
 TIER2_DATASETS = {
     
@@ -245,9 +230,6 @@ TIER2_DATASETS = {
     }
 }
 
-# ==============================================================================
-# TIER 3: MEDIUM-PRIORITY DATASETS (Phase 2-3, Month 3-6)
-# ==============================================================================
 
 TIER3_DATASETS = {
     "investment_options": {
@@ -289,9 +271,6 @@ TIER3_DATASETS = {
     }
 }
 
-# ==============================================================================
-# TIER 4: SPECIALIZED DATASETS (Phase 3+, Month 5+)
-# ==============================================================================
 
 TIER4_DATASETS = {
     "market_price_history": {
@@ -315,9 +294,6 @@ TIER4_DATASETS = {
     }
 }
 
-# ==============================================================================
-# INTEGRATION EXAMPLES - HOW TO USE EACH DATASET
-# ==============================================================================
 
 INTEGRATION_EXAMPLES = {
     "government_schemes": {
@@ -357,9 +333,6 @@ INTEGRATION_EXAMPLES = {
     }
 }
 
-# ==============================================================================
-# CSV GENERATION TEMPLATES
-# ==============================================================================
 
 def generate_government_schemes_csv():
     """Template for exporting schemes to CSV"""
@@ -379,9 +352,6 @@ EQUIP-HDFC,HDFC Bank,Equipment Loan,equipment,9.5,60,5000000
 ... (100+ rows)
 """
 
-# ==============================================================================
-# DATA COLLECTION CHECKLIST
-# ==============================================================================
 
 COLLECTION_CHECKLIST = {
     "week_1": {
@@ -416,9 +386,6 @@ COLLECTION_CHECKLIST = {
     }
 }
 
-# ==============================================================================
-# QUALITY ASSURANCE RULES
-# ==============================================================================
 
 QA_RULES = {
     "data_completeness": "No NULL values in critical fields",

@@ -97,7 +97,7 @@ export const AnalyticsView = ({ lang, t }: AnalyticsViewProps) => {
             <div>
               <p className="text-[var(--text-main)] font-medium">
                 {lang === 'en' 
-                  ? 'Random Forest model shows best performance for yield prediction'
+                  ? 'LSTM model shows best performance for yield prediction'
                   : 'उपज भविष्यवाणी के लिए रैंडम फॉरेस्ट मॉडल सर्वश्रेष्ठ प्रदर्शन दिखाता है'
                 }
               </p>
@@ -124,7 +124,7 @@ export const AnalyticsView = ({ lang, t }: AnalyticsViewProps) => {
         </h2>
         <div className="space-y-4">
           {[
-            { name: 'Random Forest', r2: 90.63, rmse: 273.98, color: '#22c55e' },
+            { name: 'LSTM', r2: 90.63, rmse: 273.98, color: '#22c55e' },
             { name: 'Gradient Boosting', r2: 90.39, rmse: 277.55, color: '#3b82f6' },
             { name: 'Linear Regression', r2: 39.12, rmse: 698.43, color: '#ef4444' }
           ].map((model) => (
