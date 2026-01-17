@@ -1,10 +1,7 @@
-// Netlify Serverless Function for Google Translate
-// Place in netlify/functions/ folder
+// Netlify Serverless Function for Google Translate using Gemini
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const translate = require('google-translate-api-x');
-
-exports.handler = async (event, context) => {
-  // Enable CORS
+exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -12,7 +9,6 @@ exports.handler = async (event, context) => {
     'Content-Type': 'application/json'
   };
 
-  // Handle preflight
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
@@ -26,7 +22,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { text, from = 'auto', to = 'en' } = JSON.parse(event.body || '{}');
+    const { text, from = 'auto', to = 'hi' } = JSON.parse(event.body || '{}');
 
     if (!text) {
       return {
@@ -36,30 +32,36 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Limit text length to prevent abuse
-    if (text.length > 5000) {
+    const apiKey = process.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
       return {
-        statusCode: 400,
+        statusCode: 500,
         headers,
-        body: JSON.stringify({ error: 'Text too long (max 5000 chars)' })
+        body: JSON.stringify({ error: 'API Key not configured' })
       };
     }
 
-    const result = await translate(text, {
-      from,
-      to,
-      autoCorrect: true,
-      forceBatch: true,
-    });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+    const prompt = `Translate the following text to the target language. 
+    Target Language: ${to} (ISO 639-1 code)
+    Source Language Hint: ${from}
+    
+    Output ONLY the translated text. Do not include any explanations.
+    
+    Text: ${text}`;
+
+    const result = await model.generateContent(prompt);
+    const translatedText = result.response.text().trim();
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         success: true,
-        translatedText: result.text,
-        detectedLanguage: result.from?.language?.iso,
-        pronunciation: result.pronunciation || null,
+        translatedText,
+        detectedLanguage: from === 'auto' ? 'unknown' : from
       })
     };
   } catch (error) {

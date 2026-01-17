@@ -54,7 +54,7 @@ export const db =
 
 export const vertexAI = getVertexAI(app, { location: "us-central1" });
 export const translationModel = getGenerativeModel(vertexAI, {
-  model: "gemini-2.0-flash-lite-001",
+  model: "gemini-2.5-flash",
   generationConfig: {
     temperature: 0,
     topK: 1,

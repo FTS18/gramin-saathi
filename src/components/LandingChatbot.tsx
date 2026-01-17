@@ -20,6 +20,20 @@ export const LandingChatbot: React.FC<LandingChatbotProps> = ({ lang }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
+  // Update intro message when language changes, only if it's the only message
+  useEffect(() => {
+    if (messages.length <= 1) {
+      setMessages([
+        {
+          role: 'assistant',
+          content: lang === 'en' 
+            ? '👋 Hi! I\'m Gramin Saathi AI. Ask me anything about farming, schemes, or how this app can help you!' 
+            : '👋 नमस्ते! मैं ग्रामीण साथी AI हूं। खेती, योजनाओं या ऐप के बारे में कुछ भी पूछें!'
+        }
+      ]);
+    }
+  }, [lang]);
+
   const scrollToBottom = () => {
     // Scroll only within the chatbot container, not the entire page
     if (messagesContainerRef.current) {
@@ -71,8 +85,12 @@ export const LandingChatbot: React.FC<LandingChatbotProps> = ({ lang }) => {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       
       const systemInstruction = lang === 'en'
-        ? `You are Gramin Saathi AI, a helpful farming assistant for Indian farmers. Keep responses concise (2-3 sentences), practical, and encouraging. Focus on: farming tips, government schemes (PM-KISAN, crop insurance), mandi prices, weather advice, and app features. Be warm and respectful.`
-        : `आप ग्रामीण साथी AI हैं, भारतीय किसानों के लिए एक सहायक। जवाब संक्षिप्त (2-3 वाक्य), व्यावहारिक और उत्साहजनक रखें। ध्यान दें: खेती टिप्स, सरकारी योजनाएं (PM-KISAN, फसल बीमा), मंडी भाव, मौसम सलाह, और ऐप फीचर्स। गर्मजोशी और सम्मान से बात करें।`;
+        ? `You are Gramin Saathi AI, a helpful farming assistant for Indian farmers. 
+           CRITICAL: You MUST respond ONLY in English. Even if the user asks in Hindi, answer in English.
+           Keep responses concise (2-3 sentences), practical, and encouraging. Focus on: farming tips, government schemes, mandi prices, weather, and app features. Be warm and respectful.`
+        : `आप ग्रामीण साथी AI हैं, भारतीय किसानों के लिए एक सहायक। 
+           CRITICAL: आपको केवल हिंदी (Hindi) में ही उत्तर देना है। भले ही उपयोगकर्ता अंग्रेजी में पूछे, आप हिंदी में ही जवाब दें।
+           जवाब संक्षिप्त (2-3 वाक्य), व्यावहारिक और उत्साहजनक रखें। खेती, सरकारी योजनाओं, मंडी भाव, मौसम और ऐप फीचर्स पर ध्यान दें।`;
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,

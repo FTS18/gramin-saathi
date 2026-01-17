@@ -25,6 +25,14 @@ export const VIDEO_LIBRARY: Video[] = [
     category: 'demo'
   },
   {
+    id: 'demo-english',
+    title: 'Gramin Sahayak - Demo',
+    topic: 'App Demo',
+    language: 'english',
+    path: '/vid/english/GraminSahayak-English.mp4',
+    category: 'demo'
+  },
+  {
     id: 'banking-hindi',
     title: 'डिजिटल बैंकिंग मूल बातें',
     topic: 'Digital Banking Basics',
@@ -167,7 +175,7 @@ export function getVideosByLanguage(lang: string, category?: 'demo' | 'learn'): 
   // Map app language to video language
   const langMap: Record<string, string> = {
     'hi': 'hindi',
-    'en': 'hindi', // Default to Hindi if English
+    'en': 'english', // Default to Hindi if English
     'pa': 'punjabi',
     'mr': 'marathi',
     'bn': 'bengali'

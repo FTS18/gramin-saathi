@@ -29,6 +29,10 @@ import { LandingChatbot } from './LandingChatbot';
 import { VoiceNavigationButton } from './VoiceNavigationButton';
 import { VideoPlayer } from './VideoPlayer';
 import { getDemoVideo } from '../lib/video-library';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -41,6 +45,162 @@ interface LandingPageProps {
   onNavigate?: (view: string) => void;
 }
 
+const allTestimonials = [
+  {
+    name: 'Ramesh Kumar',
+    name_hi: 'रमेश कुमार',
+    location: 'Sonipat, Haryana',
+    location_hi: 'सोनीपत, हरियाणा',
+    icon: Sprout,
+    quote: 'Found PM-KISAN through this app. Got ₹6,000 deposited directly!',
+    quote_hi: 'इस ऐप से PM-KISAN मिला। ₹6,000 सीधे जमा हुए!'
+  },
+  {
+    name: 'Sunita Devi',
+    name_hi: 'सुनीता देवी',
+    location: 'Vaishali, Bihar',
+    location_hi: 'वैशाली, बिहार',
+    icon: Mic,
+    quote: 'I just speak in Hindi and it writes everything. No typing needed!',
+    quote_hi: 'बस हिंदी में बोलो, सब लिख जाता है। टाइप नहीं करना!'
+  },
+  {
+    name: 'Ganesh Patil',
+    name_hi: 'गणेश पाटिल',
+    location: 'Nashik, Maharashtra',
+    location_hi: 'नासिक, महाराष्ट्र',
+    icon: Cloud,
+    quote: 'Weather alert saved my grape crop. Got 2 days advance warning!',
+    quote_hi: 'मौसम अलर्ट ने अंगूर की फसल बचाई। 2 दिन पहले चेतावनी मिली!'
+  },
+  {
+    name: 'Kavita Singh',
+    name_hi: 'कविता सिंह',
+    location: 'Lucknow, UP',
+    location_hi: 'लखनऊ, UP',
+    icon: TrendingUp,
+    quote: 'Mandi prices helped me sell potatoes at better rate.',
+    quote_hi: 'मंडी भाव से आलू अच्छे दाम पर बेचा।'
+  },
+  {
+    name: 'Mohan Reddy',
+    name_hi: 'मोहन रेड्डी',
+    location: 'Anantapur, AP',
+    location_hi: 'अनंतपुर, AP',
+    icon: Sprout,
+    quote: 'AI advice on groundnut pest control was very helpful.',
+    quote_hi: 'मूंगफली कीट नियंत्रण पर AI सलाह बहुत मददगार थी।'
+  },
+  {
+    name: 'Priya Sharma',
+    name_hi: 'प्रिया शर्मा',
+    location: 'Jaipur, Rajasthan',
+    location_hi: 'जयपुर, राजस्थान',
+    icon: Wallet,
+    quote: 'Easy to track daily expenses. Very useful for small farmers.',
+    quote_hi: 'रोज का खर्च ट्रैक करना आसान। छोटे किसानों के लिए उपयोगी।'
+  },
+  {
+    name: 'Arjun Yadav',
+    name_hi: 'अर्जुन यादव',
+    location: 'Indore, MP',
+    location_hi: 'इंदौर, MP',
+    icon: BookOpen,
+    quote: 'Learned about organic farming from Seekho section.',
+    quote_hi: 'सीखो सेक्शन से जैविक खेती सीखी।'
+  },
+  {
+    name: 'Lakshmi Bai',
+    name_hi: 'लक्ष्मी बाई',
+    location: 'Nagpur, Maharashtra',
+    location_hi: 'नागपुर, महाराष्ट्र',
+    icon: Landmark,
+    quote: 'Got crop insurance scheme through Yojana Hub.',
+    quote_hi: 'योजना हब से फसल बीमा योजना मिली।'
+  },
+  {
+    name: 'Ravi Meena',
+    name_hi: 'रवि मीणा',
+    location: 'Kota, Rajasthan',
+    location_hi: 'कोटा, राजस्थान',
+    icon: WifiOff,
+    quote: 'Works offline in my village. Very important feature!',
+    quote_hi: 'मेरे गांव में ऑफलाइन काम करता है। बहुत जरूरी फीचर!'
+  },
+  {
+    name: 'Sarita Kumari',
+    name_hi: 'सरिता कुमारी',
+    location: 'Patna, Bihar',
+    location_hi: 'पटना, बिहार',
+    icon: IndianRupee,
+    quote: 'Now I manage my farm finances properly. Thank you!',
+    quote_hi: 'अब मैं अपने खेत का हिसाब ठीक से रखती हूं। धन्यवाद!'
+  }
+];
+
+const featuresList = [
+  {
+    id: 'saathi',
+    Icon: Sprout,
+    title: { en: 'AI Farming Advisor', hi: 'AI कृषि सलाहकार' },
+    desc: { 
+      en: 'Get personalized crop advice and pest control tips in your language', 
+      hi: 'अपनी भाषा में फसल सलाह और कीट नियंत्रण टिप्स पाएं' 
+    }
+  },
+  {
+    id: 'khata',
+    Icon: Wallet,
+    title: { en: 'Voice Khata Book', hi: 'वॉइस खाता बुक' },
+    desc: { 
+      en: 'Just speak to track income and expenses. No typing needed!', 
+      hi: 'बस बोलकर आय-खर्च का हिसाब रखें। टाइप नहीं करना!' 
+    }
+  },
+  {
+    id: 'yojana',
+    Icon: Landmark,
+    title: { en: 'Government Schemes', hi: 'सरकारी योजनाएं' },
+    desc: { 
+      en: 'Discover PM-KISAN, crop insurance & schemes you qualify for', 
+      hi: 'PM-KISAN, फसल बीमा और पात्र योजनाएं खोजें' 
+    }
+  },
+  {
+    id: 'mandi',
+    Icon: BarChart3,
+    title: { en: 'Live Mandi Rates', hi: 'लाइव मंडी भाव' },
+    desc: { 
+      en: 'Real-time prices from nearby markets. Sell at best price!', 
+      hi: 'नजदीकी मंडियों से रियल-टाइम भाव। सबसे अच्छे दाम पर बेचें!' 
+    }
+  },
+  {
+    id: 'mausam',
+    Icon: Sun,
+    title: { en: 'Weather Alerts', hi: 'मौसम अलर्ट' },
+    desc: { 
+      en: '7-day forecast with alerts to protect your crops', 
+      hi: 'फसल सुरक्षा के लिए 7 दिन का पूर्वानुमान और अलर्ट' 
+    }
+  },
+  {
+    id: 'seekho',
+    Icon: BookOpen,
+    title: { en: 'Learn & Grow', hi: 'सीखें और बढ़ें' },
+    desc: { 
+      en: 'Financial literacy and modern farming techniques', 
+      hi: 'वित्तीय साक्षरता और आधुनिक खेती तकनीक' 
+    }
+  }
+];
+
+const statsList = [
+  { value: '1,200+', label: { en: 'Active Users', hi: 'सक्रिय उपयोगकर्ता' }, Icon: Users },
+  { value: '₹15L+', label: { en: 'Transactions Tracked', hi: 'लेनदेन ट्रैक किए' }, Icon: IndianRupee },
+  { value: '50+', label: { en: 'Villages Reached', hi: 'गांव पहुंचे' }, Icon: Landmark }
+];
+
 export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureClick, onLogoClick, user, onLogout, onNavigate }: LandingPageProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -52,156 +212,71 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+    
+    // GSAP Animations
+    const ctx = gsap.context(() => {
+      // Hero Animation
+      gsap.from('.hero-content > *', {
+        y: 50,
+        opacity: 0,
+        duration: 1,
+        stagger: 0.2,
+        ease: 'power3.out'
+      });
 
-  // 10 testimonials - show random 5
-  const allTestimonials = [
-    {
-      name: lang === 'en' ? 'Ramesh Kumar' : 'रमेश कुमार',
-      location: lang === 'en' ? 'Sonipat, Haryana' : 'सोनीपत, हरियाणा',
-      icon: Sprout,
-      quote: lang === 'en' 
-        ? 'Found PM-KISAN through this app. Got ₹6,000 deposited directly!' 
-        : 'इस ऐप से PM-KISAN मिला। ₹6,000 सीधे जमा हुए!'
-    },
-    {
-      name: lang === 'en' ? 'Sunita Devi' : 'सुनीता देवी',
-      location: lang === 'en' ? 'Vaishali, Bihar' : 'वैशाली, बिहार',
-      icon: Mic,
-      quote: lang === 'en' 
-        ? 'I just speak in Hindi and it writes everything. No typing needed!' 
-        : 'बस हिंदी में बोलो, सब लिख जाता है। टाइप नहीं करना!'
-    },
-    {
-      name: lang === 'en' ? 'Ganesh Patil' : 'गणेश पाटिल',
-      location: lang === 'en' ? 'Nashik, Maharashtra' : 'नासिक, महाराष्ट्र',
-      icon: Cloud,
-      quote: lang === 'en' 
-        ? 'Weather alert saved my grape crop. Got 2 days advance warning!' 
-        : 'मौसम अलर्ट ने अंगूर की फसल बचाई। 2 दिन पहले चेतावनी मिली!'
-    },
-    {
-      name: lang === 'en' ? 'Kavita Singh' : 'कविता सिंह',
-      location: lang === 'en' ? 'Lucknow, UP' : 'लखनऊ, UP',
-      icon: TrendingUp,
-      quote: lang === 'en' 
-        ? 'Mandi prices helped me sell potatoes at better rate.' 
-        : 'मंडी भाव से आलू अच्छे दाम पर बेचा।'
-    },
-    {
-      name: lang === 'en' ? 'Mohan Reddy' : 'मोहन रेड्डी',
-      location: lang === 'en' ? 'Anantapur, AP' : 'अनंतपुर, AP',
-      icon: Sprout,
-      quote: lang === 'en' 
-        ? 'AI advice on groundnut pest control was very helpful.' 
-        : 'मूंगफली कीट नियंत्रण पर AI सलाह बहुत मददगार थी।'
-    },
-    {
-      name: lang === 'en' ? 'Priya Sharma' : 'प्रिया शर्मा',
-      location: lang === 'en' ? 'Jaipur, Rajasthan' : 'जयपुर, राजस्थान',
-      icon: Wallet,
-      quote: lang === 'en' 
-        ? 'Easy to track daily expenses. Very useful for small farmers.' 
-        : 'रोज का खर्च ट्रैक करना आसान। छोटे किसानों के लिए उपयोगी।'
-    },
-    {
-      name: lang === 'en' ? 'Arjun Yadav' : 'अर्जुन यादव',
-      location: lang === 'en' ? 'Indore, MP' : 'इंदौर, MP',
-      icon: BookOpen,
-      quote: lang === 'en' 
-        ? 'Learned about organic farming from Seekho section.' 
-        : 'सीखो सेक्शन से जैविक खेती सीखी।'
-    },
-    {
-      name: lang === 'en' ? 'Lakshmi Bai' : 'लक्ष्मी बाई',
-      location: lang === 'en' ? 'Nagpur, Maharashtra' : 'नागपुर, महाराष्ट्र',
-      icon: Landmark,
-      quote: lang === 'en' 
-        ? 'Got crop insurance scheme through Yojana Hub.' 
-        : 'योजना हब से फसल बीमा योजना मिली।'
-    },
-    {
-      name: lang === 'en' ? 'Ravi Meena' : 'रवि मीणा',
-      location: lang === 'en' ? 'Kota, Rajasthan' : 'कोटा, राजस्थान',
-      icon: WifiOff,
-      quote: lang === 'en' 
-        ? 'Works offline in my village. Very important feature!' 
-        : 'मेरे गांव में ऑफलाइन काम करता है। बहुत जरूरी फीचर!'
-    },
-    {
-      name: lang === 'en' ? 'Sarita Kumari' : 'सरिता कुमारी',
-      location: lang === 'en' ? 'Patna, Bihar' : 'पटना, बिहार',
-      icon: IndianRupee,
-      quote: lang === 'en' 
-        ? 'Now I manage my farm finances properly. Thank you!' 
-        : 'अब मैं अपने खेत का हिसाब ठीक से रखती हूं। धन्यवाद!'
-    }
-  ];
+      gsap.from('.hero-image', {
+        scale: 1.1,
+        opacity: 0,
+        duration: 1.5,
+        ease: 'power2.out'
+      });
+
+      // Feature Cards Scroll Animation
+      gsap.from('.feature-card', {
+        scrollTrigger: {
+          trigger: '#features',
+          start: 'top 95%', 
+          toggleActions: 'play none none none',
+          once: true,
+        },
+        y: 40,
+        opacity: 0,
+        scale: 0.98,
+        duration: 0.8,
+        stagger: 0.1,
+        ease: 'power2.out',
+        immediateRender: false // Crucial: don't hide until the trigger is reached or animation starts
+      });
+
+      // Impact Stats Animation
+      gsap.from('.stat-card', {
+        scrollTrigger: {
+          trigger: '#impact',
+          start: 'top 85%',
+          once: true
+        },
+        scale: 0.9,
+        autoAlpha: 0,
+        duration: 0.5,
+        stagger: 0.1,
+        ease: 'back.out(1.7)'
+      });
+      
+      // Refresh ScrollTrigger after a short delay to ensure DOM is settled
+      setTimeout(() => ScrollTrigger.refresh(), 1000);
+    });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      ctx.revert();
+    };
+  }, [lang]);
 
   // Randomly select 5 testimonials on mount
   const testimonials = useMemo(() => {
     const shuffled = [...allTestimonials].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, 5);
   }, [lang]);
-
-  const features = [
-    {
-      id: 'saathi',
-      Icon: Sprout,
-      title: lang === 'en' ? 'AI Farming Advisor' : 'AI कृषि सलाहकार',
-      desc: lang === 'en' 
-        ? 'Get personalized crop advice and pest control tips in your language' 
-        : 'अपनी भाषा में फसल सलाह और कीट नियंत्रण टिप्स पाएं'
-    },
-    {
-      id: 'khata',
-      Icon: Wallet,
-      title: lang === 'en' ? 'Voice Khata Book' : 'वॉइस खाता बुक',
-      desc: lang === 'en' 
-        ? 'Just speak to track income and expenses. No typing needed!' 
-        : 'बस बोलकर आय-खर्च का हिसाब रखें। टाइप नहीं करना!'
-    },
-    {
-      id: 'yojana',
-      Icon: Landmark,
-      title: lang === 'en' ? 'Government Schemes' : 'सरकारी योजनाएं',
-      desc: lang === 'en' 
-        ? 'Discover PM-KISAN, crop insurance & schemes you qualify for' 
-        : 'PM-KISAN, फसल बीमा और पात्र योजनाएं खोजें'
-    },
-    {
-      id: 'mandi',
-      Icon: BarChart3,
-      title: lang === 'en' ? 'Live Mandi Rates' : 'लाइव मंडी भाव',
-      desc: lang === 'en' 
-        ? 'Real-time prices from nearby markets. Sell at best price!' 
-        : 'नजदीकी मंडियों से रियल-टाइम भाव। सबसे अच्छे दाम पर बेचें!'
-    },
-    {
-      id: 'mausam',
-      Icon: Sun,
-      title: lang === 'en' ? 'Weather Alerts' : 'मौसम अलर्ट',
-      desc: lang === 'en' 
-        ? '7-day forecast with alerts to protect your crops' 
-        : 'फसल सुरक्षा के लिए 7 दिन का पूर्वानुमान और अलर्ट'
-    },
-    {
-      id: 'seekho',
-      Icon: BookOpen,
-      title: lang === 'en' ? 'Learn & Grow' : 'सीखें और बढ़ें',
-      desc: lang === 'en' 
-        ? 'Financial literacy and modern farming techniques' 
-        : 'वित्तीय साक्षरता और आधुनिक खेती तकनीक'
-    }
-  ];
-
-  // Realistic hackathon numbers
-  const stats = [
-    { value: '1,200+', label: lang === 'en' ? 'Active Users' : 'सक्रिय उपयोगकर्ता', Icon: Users },
-    { value: '₹15L+', label: lang === 'en' ? 'Transactions Tracked' : 'लेनदेन ट्रैक किए', Icon: IndianRupee },
-    { value: '50+', label: lang === 'en' ? 'Villages Reached' : 'गांव पहुंचे', Icon: Landmark }
-  ];
 
   const DEMO_VIDEO_URL = 'https://www.youtube.com/watch?v=RcG1TwdPoKI';
 
@@ -212,6 +287,7 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
         .heading-font { font-family: 'Space Grotesk', system-ui, sans-serif; }
         body { font-family: 'Space Grotesk', system-ui, sans-serif; }
+        .feature-card { opacity: 1; visibility: visible; }
       `}</style>
       
       {/* ===== NAVBAR ===== */}
@@ -299,12 +375,13 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
           <img 
             src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920&q=80" 
             alt="" 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover hero-image"
           />
-          <div className="absolute inset-0 bg-gradient-to-b sm:bg-gradient-to-r from-[#0a1f1a] via-[#0a1f1a]/95 to-[#0a1f1a]/80 sm:to-[#0a1f1a]/70" />
+          <div className="absolute inset-0 bg-gradient-to-b sm:bg-gradient-to-r from-[#0a1f1a] via-[#0a1f1a]/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0a1f1a] to-transparent opacity-60" />
         </div>
 
-        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-20">
+        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-20 hero-content">
           <div className="grid lg:grid-cols-2 gap-6 lg:gap-16 items-center">
             {/* Left - Text Content */}
             <div className="text-center lg:text-left">
@@ -339,7 +416,7 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
                   onClick={onGetStarted}
                   className="group px-5 py-2.5 sm:px-6 sm:py-3 bg-[#c8e038] text-[#0a1f1a] font-semibold rounded-xl hover:bg-[#d4ea4d] active:scale-95 transition-all flex items-center justify-center gap-2 select-none cursor-pointer no-underline border-none outline-none"
                 >
-                  {lang === 'en' ? 'Start Free' : 'मुफ्त शुरू करें'}
+                  {lang === 'en' ? 'Start' : 'शुरू करें'}
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </button>
                 <button 
@@ -353,10 +430,10 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
 
               {/* Quick Stats */}
               <div className="flex gap-4 sm:gap-8 justify-center lg:justify-start">
-                {stats.map((stat, i) => (
+                {statsList.map((stat, i) => (
                   <div key={i} className="text-center lg:text-left">
                     <p className="text-lg sm:text-2xl font-bold text-[#c8e038]">{stat.value}</p>
-                    <p className="text-[10px] sm:text-xs text-white/50 whitespace-nowrap">{stat.label}</p>
+                    <p className="text-[10px] sm:text-xs text-white/50 whitespace-nowrap">{stat.label[lang] || stat.label.en}</p>
                   </div>
                 ))}
               </div>
@@ -375,6 +452,7 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
         </div>
       </section>
 
+      
       {/* ===== FEATURES ===== */}
       <section id="features" className="py-12 sm:py-20 bg-[#0d2922]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -389,24 +467,23 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
           </div>
 
           {/* Grid - Full width on mobile */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
-            {features.map((f, i) => (
+          <div className="features-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
+            {featuresList.map((f, i) => (
               <div 
                 key={i}
-                onClick={() => onFeatureClick(f.id)}
-                className="p-4 sm:p-6 bg-[#0a1f1a] rounded-xl sm:rounded-2xl border border-white/10 hover:border-[#c8e038]/50 hover:bg-[#0a1f1a]/80 active:scale-[0.98] transition-all duration-300 cursor-pointer group text-left select-none no-underline block"
+                onClick={() => onFeatureClick?.(f.id)}
+                className="feature-card p-4 sm:p-6 bg-[#0a1f1a] rounded-xl sm:rounded-2xl border border-white/10 hover:border-[#c8e038]/50 hover:bg-[#0a1f1a]/80 active:scale-[0.98] transition-all duration-300 cursor-pointer group text-left select-none no-underline block"
               >
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#c8e038]/20 flex items-center justify-center mb-3 sm:mb-4 group-hover:bg-[#c8e038]/30 transition-colors">
                   <f.Icon className="w-5 h-5 sm:w-6 sm:h-6 text-[#c8e038]" />
                 </div>
-                <h3 className="text-sm sm:text-base font-semibold text-white mb-1 sm:mb-2">{f.title}</h3>
-                <p className="text-xs sm:text-sm text-white/60 leading-relaxed">{f.desc}</p>
+                <h3 className="text-sm sm:text-base font-semibold text-white mb-1 sm:mb-2">{f.title[lang] || f.title.en}</h3>
+                <p className="text-xs sm:text-sm text-white/60 leading-relaxed">{f.desc[lang] || f.desc.en}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
-
       {/* ===== HOW IT WORKS ===== */}
       <section className="py-12 sm:py-20 bg-[#f8f6f0]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -480,13 +557,13 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-            {stats.map((stat, i) => (
-              <div key={i} className="text-center p-6 sm:p-8 rounded-2xl bg-white/5 border border-white/10">
+            {statsList.map((stat, i) => (
+              <div key={i} className="stat-card text-center p-6 sm:p-8 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
                 <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-[#c8e038]/10 flex items-center justify-center">
                   <stat.Icon className="w-6 h-6 text-[#c8e038]" />
                 </div>
                 <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#c8e038] mb-1 sm:mb-2">{stat.value}</p>
-                <p className="text-xs sm:text-sm text-white/60">{stat.label}</p>
+                <p className="text-xs sm:text-sm text-white/60">{stat.label[lang] || stat.label.en}</p>
               </div>
             ))}
           </div>
@@ -524,17 +601,18 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
               {/* Duplicate testimonials for seamless loop */}
               {[...allTestimonials, ...allTestimonials].map((t, i) => {
                 const TestimonialIcon = t.icon;
+                const isHi = lang === 'hi';
                 return (
                   <div key={i} className="w-[280px] sm:w-[350px] flex-shrink-0 mx-2 sm:mx-2.5 p-4 sm:p-6 bg-white rounded-xl sm:rounded-2xl border border-gray-100">
                     <Quote className="w-4 h-4 sm:w-5 sm:h-5 text-[#c8e038] mb-2 sm:mb-3" />
-                    <p className="text-xs sm:text-sm text-gray-600 leading-relaxed mb-4 sm:mb-5">"{t.quote}"</p>
+                    <p className="text-xs sm:text-sm text-gray-600 leading-relaxed mb-4 sm:mb-5">"{isHi ? t.quote_hi : t.quote}"</p>
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#c8e038]/20 flex items-center justify-center">
                         <TestimonialIcon className="w-4 h-4 text-[#22c55e]" />
                       </div>
                       <div>
-                        <p className="text-xs sm:text-sm font-medium text-[#0a1f1a]">{t.name}</p>
-                        <p className="text-[10px] sm:text-xs text-gray-500">{t.location}</p>
+                        <p className="text-xs sm:text-sm font-medium text-[#0a1f1a]">{isHi ? t.name_hi : t.name}</p>
+                        <p className="text-[10px] sm:text-xs text-gray-500">{isHi ? t.location_hi : t.location}</p>
                       </div>
                     </div>
                   </div>

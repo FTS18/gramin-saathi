@@ -191,22 +191,23 @@ export function TranslatorView({ t, lang, user, db, appId }: any) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: inputText,
-          from: fromLang === 'auto' ? 'auto' : fromLang,
+          from: fromLang,
           to: toLang
         })
       });
+
+      const data = await response.json();
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.translatedText) {
-          setOutputText(data.translatedText);
-          saveToHistory(inputText, data.translatedText, fromLang, toLang);
-          setLoading(false);
-          return;
-        }
+      if (data.success && data.translatedText) {
+        setOutputText(data.translatedText);
+        saveToHistory(inputText, data.translatedText, fromLang, toLang);
+        setLoading(false);
+        return;
       }
-      throw new Error('Using offline translation');
+      
+      throw new Error(data.error || 'Translation failed');
     } catch (e) {
+      console.error('Translation error, using offline fallback:', e);
       const fallback = offlineFallback(inputText);
       setOutputText(fallback.text);
     }

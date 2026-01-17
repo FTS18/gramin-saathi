@@ -126,6 +126,15 @@ export function SaathiView({ user, profile, appId, t, lang }: any) {
     ]);
   };
 
+  // Update intro message when language changes, only if it's the only message (new chat)
+  useEffect(() => {
+    if (messages.length <= 1) {
+      setMessages([
+        { role: 'model', text: t('saathi_intro').replace('{name}', profile?.name || (lang === 'en' ? 'Ji' : 'जी')) }
+      ]);
+    }
+  }, [lang, t, profile]);
+
   const loadChat = async (chatSessionId: string) => {
     if (!user) return;
     try {
@@ -334,7 +343,11 @@ export function SaathiView({ user, profile, appId, t, lang }: any) {
         } catch (e) {}
       }
 
-      const systemInstruction = `You are Gramin Saathi AI. ${compactContext}. Language: ${lang === 'en' ? 'English' : 'Hindi'} (simple). ${localResponse ? 'Context: ' + localResponse.substring(0, 200) : ''} Be concise, practical, respectful. Use metaphors for finance.`;
+      const systemInstruction = `You are Gramin Saathi AI. ${compactContext}. 
+      STRICT LANGUAGE RULE: You MUST speak ONLY in ${lang === 'en' ? 'English' : 'Hindi'}. 
+      If the user speaks English, you reply in ${lang === 'en' ? 'English' : 'Hindi'}. 
+      If the user speaks Hindi, you reply in ${lang === 'en' ? 'English' : 'Hindi'}. 
+      Do NOT mix languages. ${localResponse ? 'Context: ' + localResponse.substring(0, 200) : ''} Be concise, practical, respectful. Use metaphors for finance.`;
 
       // Only send last 5 messages to save tokens
       const history = messages.slice(-5).map(m => ({

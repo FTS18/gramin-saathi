@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, MessageCircle, BookOpen, Gift, GraduationCap, User } from 'lucide-react';
+import { Home, MessageCircle, BookOpen, Gift, GraduationCap, User, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -51,9 +51,16 @@ export const Sidebar = () => {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-border">
-        <p className="text-xs text-muted-foreground text-center">
-          Gramin Saathi v1.0
+      <div className="p-4 border-t border-border space-y-2">
+        <Link 
+          to="/?tour=true" 
+          className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all"
+        >
+          <HelpCircle className="w-5 h-5" />
+          <span className="font-medium">{t('help') || 'Help & Tour'}</span>
+        </Link>
+        <p className="text-xs text-muted-foreground text-center pt-2">
+          Gramin Saathi v2.0
         </p>
       </div>
     </aside>

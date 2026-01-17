@@ -32,6 +32,7 @@ import { db } from '../../lib/firebase-config';
 import { initiateRazorpayPayment, formatCurrency, QUICK_AMOUNTS } from '../../lib/razorpay-client';
 import { generatePaymentQR, parseUPIString, isValidUPIId } from '../../lib/upi-utils';
 import { Html5Qrcode } from 'html5-qrcode';
+import { generateBankingTransactionId, generateReceiptPDF } from '../../lib/transaction-utils';
 
 interface Transaction {
   id: string;
@@ -223,7 +224,8 @@ export function KhataView({ user, appId, t, lang, voiceAction }: any) {
             description: 'Wallet top-up via Razorpay',
             
             // GPay-level transaction details
-            transactionId: response.razorpay_payment_id,
+            transactionId: generateBankingTransactionId(),
+            razorpayPaymentId: response.razorpay_payment_id,
             orderId: response.razorpay_order_id || null,
             timestamp: now.toISOString(),
             displayDate: now.toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN'),
@@ -390,7 +392,8 @@ export function KhataView({ user, appId, t, lang, voiceAction }: any) {
             description: description || `Paid to ${upiId}`,
             
             // GPay-level transaction details
-            transactionId: `UPI_SENT_${Date.now()}`,
+            transactionId: generateBankingTransactionId(),
+            upiTransactionId: `UPI_SENT_${Date.now()}`,
             timestamp: now.toISOString(),
             displayDate: now.toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN'),
             displayTime: now.toLocaleTimeString(lang === 'hi' ? 'hi-IN' : 'en-IN', { 
@@ -615,11 +618,9 @@ export function KhataView({ user, appId, t, lang, voiceAction }: any) {
                           </>
                         )}
                       </div>
-                      {txn.transactionId && (
-                        <p className="text-[10px] text-[var(--text-muted)] mt-1 font-mono">
-                          ID: {txn.transactionId.substring(0, 20)}...
-                        </p>
-                      )}
+                      <p className="text-[10px] text-[var(--text-muted)] mt-1 font-mono">
+                        ID: {txn.transactionId || `GS-${txn.id.substring(0, 12).toUpperCase()}`}
+                      </p>
                     </div>
                   </div>
                   
@@ -645,24 +646,10 @@ export function KhataView({ user, appId, t, lang, voiceAction }: any) {
                 {/* Expanded Details - GPay Style */}
                 {expandedTxn === txn.id && (
                   <div className="px-3 pb-3 pt-0 space-y-2 border-t border-[var(--border)] bg-[var(--bg-card)]/50">
-                    {txn.transactionId && (
-                      <div className="flex justify-between text-xs">
-                        <span className="text-[var(--text-muted)]">{lang === 'en' ? 'Transaction ID' : 'लेनदेन ID'}:</span>
-                        <span className="font-mono text-[var(--text-main)]">{txn.transactionId}</span>
-                      </div>
-                    )}
-                    {txn.timestamp && (
-                      <div className="flex justify-between text-xs">
-                        <span className="text-[var(--text-muted)]">{lang === 'en' ? 'Time' : 'समय'}:</span>
-                        <span className="text-[var(--text-main)]">{txn.displayTime || new Date(txn.timestamp).toLocaleTimeString()}</span>
-                      </div>
-                    )}
-                    {txn.paymentMethod && (
-                      <div className="flex justify-between text-xs">
-                        <span className="text-[var(--text-muted)]">{lang === 'en' ? 'Payment Method' : 'भुगतान विधि'}:</span>
-                        <span className="text-[var(--text-main)] capitalize">{txn.paymentMethod}</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[var(--text-muted)]">{lang === 'en' ? 'Transaction ID' : 'लेनदेन ID'}:</span>
+                      <span className="font-mono text-[var(--text-main)] font-bold">{txn.transactionId || `GS-${txn.id.substring(0, 12).toUpperCase()}`}</span>
+                    </div>
                     {txn.from && (
                       <div className="flex justify-between text-xs">
                         <span className="text-[var(--text-muted)]">{lang === 'en' ? 'From' : 'से'}:</span>
@@ -675,9 +662,24 @@ export function KhataView({ user, appId, t, lang, voiceAction }: any) {
                         <span className="text-[var(--text-main)]">{txn.to}</span>
                       </div>
                     )}
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[var(--text-muted)]">{lang === 'en' ? 'Type' : 'प्रकार'}:</span>
+                      <span className={`capitalize font-medium ${
+                        txn.type === 'income' || txn.type === 'payment_received' ? 'text-green-400' : 'text-red-400'
+                      }`}>
+                        {lang === 'en' ? txn.type.replace('_', ' ') : 
+                          txn.type === 'income' ? 'आय' : 
+                          txn.type === 'expense' ? 'खर्च' : 
+                          txn.type === 'payment_sent' ? 'भुगतान भेजा' : 'भुगतान प्राप्त'}
+                      </span>
+                    </div>
                     <div className="flex gap-2 pt-2">
-                      <button className="flex-1 text-xs py-2 bg-[var(--bg-input)] hover:bg-[var(--bg-card-hover)] rounded-lg text-[var(--text-main)] transition-colors">
-                        {lang === 'en' ? 'Share Receipt' : 'रसीद साझा करें'}
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); generateReceiptPDF(txn, lang); }}
+                        className="flex-1 text-xs py-2 bg-[var(--primary)] hover:opacity-90 rounded-lg text-black font-bold transition-all flex items-center justify-center gap-2"
+                      >
+                        <Download size={14} />
+                        {lang === 'en' ? 'Download Receipt' : 'रसीद डाउनलोड करें'}
                       </button>
                       <button 
                         onClick={(e) => { e.stopPropagation(); deleteTransaction(txn.id); }}
@@ -763,7 +765,7 @@ export function KhataView({ user, appId, t, lang, voiceAction }: any) {
                       amount: parseFloat(amount),
                       type: 'income',
                       description: 'Cash/Bank deposit',
-                      transactionId: `MANUAL_${Date.now()}`,
+                      transactionId: generateBankingTransactionId(),
                       timestamp: now.toISOString(),
                       displayDate: now.toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN'),
                       displayTime: now.toLocaleTimeString(lang === 'hi' ? 'hi-IN' : 'en-IN', { 
