@@ -25,7 +25,7 @@ import {
   Sprout 
 } from 'lucide-react';
 import { db } from '../../lib/firebase-config';
-import { speakText } from '../../lib/voice-utils';
+import { speakText, startVoiceRecognition } from '../../lib/voice-utils';
 import { 
   detectIntent, 
   matchSchemes, 
@@ -61,6 +61,7 @@ export function SaathiView({ user, profile, appId, t, lang }: any) {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [audioPlaying, setAudioPlaying] = useState<number | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);
@@ -525,6 +526,26 @@ export function SaathiView({ user, profile, appId, t, lang }: any) {
           <div className="flex gap-2 items-center bg-[var(--bg-input)] p-2 rounded-2xl border border-[var(--border)]">
             <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors">
               <Camera size={20} />
+            </button>
+            <button 
+              onClick={() => {
+                if (isListening) {
+                  setIsListening(false);
+                  return;
+                }
+                setIsListening(true);
+                const recognition = startVoiceRecognition((text) => {
+                  setInput(prev => prev + (prev ? ' ' : '') + text);
+                  setIsListening(false);
+                }, lang);
+                if (!recognition) {
+                  setIsListening(false);
+                  alert(lang === 'en' ? 'Voice not supported' : 'आवाज समर्थित नहीं');
+                }
+              }}
+              className={`p-2 rounded-xl transition-colors ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--primary)]'}`}
+            >
+              <Mic size={20} />
             </button>
             <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
             <input 

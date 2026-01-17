@@ -113,10 +113,13 @@ export function generateDummyTransactions(lang = 'en') {
     const date = new Date();
     date.setDate(now.getDate() - Math.floor(Math.random() * 30));
     
+    // Use whole numbers only - round to nearest 100
+    const randomVariation = Math.floor((Math.random() * 500 - 250) / 100) * 100;
+    
     transactions.push({
       id: `dummy-${i}`,
       category: cat.name,
-      amount: cat.amount + (Math.random() * 500 - 250),
+      amount: cat.amount + randomVariation,
       date: date.toISOString(),
       type: cat.amount > 0 ? 'income' : 'expense',
       note: lang === 'en' ? 'Sample transaction' : 'नमूना लेनदेन'

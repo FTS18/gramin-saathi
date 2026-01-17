@@ -27,6 +27,8 @@ import {
 } from 'lucide-react';
 import { LandingChatbot } from './LandingChatbot';
 import { VoiceNavigationButton } from './VoiceNavigationButton';
+import { VideoPlayer } from './VideoPlayer';
+import { getDemoVideo } from '../lib/video-library';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -42,6 +44,10 @@ interface LandingPageProps {
 export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureClick, onLogoClick, user, onLogout, onNavigate }: LandingPageProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [showDemoVideo, setShowDemoVideo] = useState(false);
+  
+  // Get demo video based on current language
+  const demoVideo = getDemoVideo(lang);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -336,15 +342,13 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
                   {lang === 'en' ? 'Start Free' : 'मुफ्त शुरू करें'}
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </button>
-                <a 
-                  href={DEMO_VIDEO_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-5 py-2.5 sm:px-6 sm:py-3 border border-white/20 text-white font-medium rounded-xl hover:border-white/40 active:scale-95 transition-all flex items-center justify-center gap-2 select-none cursor-pointer no-underline"
+                <button 
+                  onClick={() => setShowDemoVideo(true)}
+                  className="px-5 py-2.5 sm:px-6 sm:py-3 border border-white/20 text-white font-medium rounded-xl hover:border-white/40 active:scale-95 transition-all flex items-center justify-center gap-2 select-none cursor-pointer"
                 >
                   <Play className="w-4 h-4" />
-                  {lang === 'en' ? 'Watch Demo (v1)' : 'डेमो देखें (v1)'}
-                </a>
+                  {lang === 'en' ? 'Watch Demo' : lang === 'pa' ? 'ਡੈਮੋ ਦੇਖੋ' : lang === 'mr' ? 'डेमो पहा' : 'डेमो देखें'}
+                </button>
               </div>
 
               {/* Quick Stats */}
@@ -587,6 +591,16 @@ export default function LandingPage({ onGetStarted, lang, toggleLang, onFeatureC
           onNavigate={onNavigate} 
           lang={lang}
           currentView="landing"
+        />
+      )}
+      
+      {/* Demo Video Player */}
+      {showDemoVideo && demoVideo && (
+        <VideoPlayer
+          videoPath={demoVideo.path}
+          title={demoVideo.title}
+          onClose={() => setShowDemoVideo(false)}
+          autoPlay
         />
       )}
     </div>

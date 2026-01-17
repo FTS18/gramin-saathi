@@ -6,6 +6,7 @@ interface VoiceNavigationButtonProps {
   onNavigate: (view: string) => void;
   lang: string;
   currentView: string;
+  onKhataAction?: (action: { type: 'add' | 'send' | 'receive', amount?: number }) => void;
 }
 
 // Enhanced voice command mappings with natural language phrases
@@ -96,46 +97,93 @@ const INTENT_PHRASES: Record<string, RegExp[]> = {
 export const VoiceNavigationButton: React.FC<VoiceNavigationButtonProps> = ({ 
   onNavigate, 
   lang,
-  currentView 
+  currentView,
+  onKhataAction
 }) => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [recognition, setRecognition] = useState<any>(null);
   const [error, setError] = useState('');
 
-  const parseCommand = (text: string): string | null => {
+  const parseCommand = (text: string): { view?: string; khataAction?: { type: 'add' | 'send' | 'receive'; amount?: number } } => {
     const lowerText = text.toLowerCase().trim();
+    
+    // Check for Khatabook-specific actions first
+    const addMoneyRegex = /(add|deposit|जोड़|जमा).*?(\d+)/i;
+    const sendMoneyRegex = /(send|pay|transfer|भेज|भुगतान).*?(\d+)/i;
+    const receiveRegex = /(receive|get|payment|प्राप्त|पाना|qr)/i;
+    
+    const addMatch = text.match(addMoneyRegex);
+    if (addMatch && addMatch[2]) {
+      return { 
+        view: 'khata',
+        khataAction: { 
+          type: 'add', 
+          amount: parseInt(addMatch[2]) 
+        }
+      };
+    }
+    
+    const sendMatch = text.match(sendMoneyRegex);
+    if (sendMatch && sendMatch[2]) {
+      return { 
+        view: 'khata',
+        khataAction: { 
+          type: 'send', 
+          amount: parseInt(sendMatch[2]) 
+        }
+      };
+    }
+    
+    if (receiveRegex.test(lowerText)) {
+      return { 
+        view: 'khata',
+        khataAction: { 
+          type: 'receive' 
+        }
+      };
+    }
     
     // First, try intent-based matching for natural language
     for (const [view, patterns] of Object.entries(INTENT_PHRASES)) {
-      // Check if the text matches any of the intent patterns for this view
       const matchCount = patterns.filter(pattern => pattern.test(lowerText)).length;
       if (matchCount > 0) {
-        return view;
+        return { view };
       }
     }
     
     // Fallback to exact keyword matching
     for (const [view, commands] of Object.entries(COMMAND_MAP)) {
       if (commands.some(cmd => lowerText.includes(cmd.toLowerCase()))) {
-        return view;
+        return { view };
       }
     }
     
-    return null;
+    return {};
   };
 
   const handleVoiceInput = (text: string) => {
     setTranscript(text);
-    const view = parseCommand(text);
+    const result = parseCommand(text);
     
-    if (view) {
-      onNavigate(view);
+    if (result.view || result.khataAction) {
+      // Navigate to view if specified
+      if (result.view) {
+        onNavigate(result.view);
+      }
+      
+      // Trigger Khatabook action if specified
+      if (result.khataAction && onKhataAction) {
+        setTimeout(() => {
+          onKhataAction(result.khataAction!);
+        }, 500); // Small delay to let navigation happen first
+      }
+      
       setIsListening(false);
       setTranscript('');
       setError('');
     } else {
-      setError(lang === 'en' ? 'Command not recognized' : 'आदेश समझ नहीं आया');
+      setError(lang === 'en' ? 'Command not recognized' : 'आदेश समझ नहींआया');
       setTimeout(() => {
         setError('');
         setTranscript('');
@@ -183,6 +231,7 @@ export const VoiceNavigationButton: React.FC<VoiceNavigationButtonProps> = ({
     <>
       {/* Floating Action Button */}
       <button
+        data-tour="voice"
         onClick={toggleListening}
         className={`group fixed bottom-6 right-6 z-50 flex items-center justify-center w-16 h-16 rounded-full shadow-lg transform transition-all duration-300 ease-out ${
           isListening 

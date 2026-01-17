@@ -153,12 +153,13 @@ export function ProfileView({ user, profile, db, appId, t, loadProfile, lang, fo
     }
   };
 
+  /* Font sizes definition - commented out
   const fontSizes = [
     { key: 'small', label: lang === 'en' ? 'S' : 'छो', class: 'text-sm' },
-    { key: 'medium', label: lang === 'en' ? 'M' : 'म', class: 'text-base' },
-    { key: 'large', label: lang === 'en' ? 'L' : 'बड़', class: 'text-lg' },
-    { key: 'xlarge', label: lang === 'en' ? 'XL' : 'अ.ब', class: 'text-xl' },
+    { key: 'medium', label: lang === 'en' ? 'N' : 'सा', class: 'text-base' },
+    { key: 'large', label: lang === 'en' ? 'L' : 'बड़', class: 'text-xl' },
   ];
+  */
 
   const cropOptions = ['wheat', 'rice', 'sugarcane', 'cotton', 'maize', 'soybean', 'vegetables', 'fruits', 'pulses', 'other'];
 
@@ -349,7 +350,7 @@ export function ProfileView({ user, profile, db, appId, t, loadProfile, lang, fo
           {lang === 'en' ? 'Settings' : 'सेटिंग्स'}
         </h3>
         
-        {/* Font Size */}
+        {/* Font Size - Commented out for now
         <div className="p-3 bg-[var(--bg-input)] rounded-xl">
           <p className="text-xs font-bold text-[var(--text-muted)] uppercase mb-2 flex items-center gap-2">
             <Type size={12} />
@@ -367,6 +368,7 @@ export function ProfileView({ user, profile, db, appId, t, loadProfile, lang, fo
             ))}
           </div>
         </div>
+        */}
 
         {/* Account Info */}
         <div className="p-3 bg-[var(--bg-input)] rounded-xl">

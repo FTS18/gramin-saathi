@@ -143,7 +143,7 @@ export function HomeView({ user, profile, db, appId, t, lang, setView }: any) {
       collection(db, 'artifacts', appId, 'users', user.uid, 'khata'),
       orderBy('date', 'desc')
     );
-    const unsub = onSnapshot(q, (snapshot) => {
+    const unsub = onSnapshot(q, async (snapshot) => {
        if (snapshot.docs.length === 0) {
          const demoTransactions = generateDummyTransactions(lang);
          processTransactions(demoTransactions);
@@ -155,22 +155,40 @@ export function HomeView({ user, profile, db, appId, t, lang, setView }: any) {
        let expense = 0;
        const txns: any[] = [];
        
-       snapshot.docs.forEach(doc => {
-         const data = doc.data();
-         const amount = Number(data.amount);
-         if (data.type === 'income') {
+       // Decrypt amounts from encrypted fields
+       for (const docSnap of snapshot.docs) {
+         const data = docSnap.data();
+         
+         // Decrypt amount if encrypted
+         let amount = data.amount;
+         if (data.amount_isEncrypted && data.amount_encrypted) {
+           try {
+             const { decryptData } = await import('../../lib/encryption');
+             amount = await decryptData(data.amount_encrypted);
+             amount = typeof amount === 'string' ? parseFloat(amount) : amount;
+           } catch (error) {
+             console.error('Failed to decrypt amount:', error);
+             amount = 0;
+           }
+         }
+         
+         amount = Number(amount) || 0; // Ensure it's a number
+         
+         if (data.type === 'income' || data.type === 'payment_received') {
            total += amount;
            income += amount;
-         } else {
+         } else if (data.type === 'expense' || data.type === 'payment_sent') {
            total -= amount;
            expense += amount;
          }
+         
          txns.push({
            ...data,
-           id: doc.id,
+           amount, // Use decrypted amount
+           id: docSnap.id,
            timestamp: data.date?.toDate ? data.date.toDate() : new Date()
          });
-       });
+       }
        
        setBalance(total);
        setTotalIncome(income);
@@ -211,7 +229,7 @@ export function HomeView({ user, profile, db, appId, t, lang, setView }: any) {
             </div>
           </div>
           
-          <div className="mt-5 bg-[var(--bg-glass)] rounded-2xl p-4 border border-[var(--border)]">
+          <div data-tour="balance-card" className="mt-5 bg-[var(--bg-glass)] rounded-2xl p-4 border border-[var(--border)]">
             <div className="flex items-center justify-between mb-3">
               <p className="text-[var(--text-muted)] text-xs">{lang === 'en' ? "Today's Activity" : 'आज की गतिविधि'}</p>
               <div className="relative w-12 h-12">
@@ -269,7 +287,7 @@ export function HomeView({ user, profile, db, appId, t, lang, setView }: any) {
         </div>
 
         {/* Balance Card - Desktop */}
-        <div className="hidden lg:block bg-gradient-to-br from-[#c8e038] to-[#9ab82a] rounded-3xl p-5 text-[#0a1f1a] relative overflow-hidden">
+        <div data-tour="balance-card" className="hidden lg:block bg-gradient-to-br from-[#c8e038] to-[#9ab82a] rounded-3xl p-5 text-[#0a1f1a] relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16" />
           <div className="relative">
             <div className="flex items-center justify-between mb-4">
@@ -368,8 +386,8 @@ export function HomeView({ user, profile, db, appId, t, lang, setView }: any) {
           </div>
         </div>
 
-        {/* Widgets Column */}
-        <div className="space-y-3">
+        {/* Quick Shortcuts Widget */}
+        <div data-tour="quick-actions" className="space-y-3">
           <div 
             onClick={() => setView('saathi')}
             className="bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-glass)] rounded-2xl p-4 cursor-pointer hover:ring-2 hover:ring-[var(--primary)]/50 transition-all group border border-[var(--border)]">
@@ -418,7 +436,7 @@ export function HomeView({ user, profile, db, appId, t, lang, setView }: any) {
       </div>
 
       {/* Recent Transactions */}
-      <div className="bg-[var(--bg-card)] rounded-3xl p-5 border border-[var(--border)]">
+      <div data-tour="transactions" className="bg-[var(--bg-card)] rounded-3xl p-5 border border-[var(--border)]">
         <div className="flex items-center justify-between mb-4">
           <p className="text-[var(--text-main)] font-semibold">{lang === 'en' ? 'Recent Transactions' : 'हाल के लेनदेन'}</p>
           <button onClick={() => setView('khata')} className="text-[var(--primary)] text-xs hover:underline">

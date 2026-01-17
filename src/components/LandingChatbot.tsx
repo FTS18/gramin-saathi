@@ -75,7 +75,7 @@ export const LandingChatbot: React.FC<LandingChatbotProps> = ({ lang }) => {
         : `आप ग्रामीण साथी AI हैं, भारतीय किसानों के लिए एक सहायक। जवाब संक्षिप्त (2-3 वाक्य), व्यावहारिक और उत्साहजनक रखें। ध्यान दें: खेती टिप्स, सरकारी योजनाएं (PM-KISAN, फसल बीमा), मंडी भाव, मौसम सलाह, और ऐप फीचर्स। गर्मजोशी और सम्मान से बात करें।`;
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

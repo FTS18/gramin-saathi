@@ -47,6 +47,8 @@ import { YieldPredictorView } from './components/views/YieldPredictorView';
 import SchemeEligibilityAdvisor from './components/views/SchemeEligibilityAdvisor';
 import InsuranceAdvisor from './components/views/InsuranceAdvisor';
 import LoanRecommender from './components/views/LoanRecommender';
+import { GuidedTour, TourButton, hasCompletedTour, markTourCompleted } from './components/GuidedTour';
+import { getTourSteps } from './lib/tour-config';
 
 // Custom UI Components
 import { NavItem } from './components/custom-ui/NavigationElements';
@@ -88,7 +90,18 @@ const themeStyles = `
     --shadow-neon: 0 0 10px rgba(65, 234, 212, 0.3), 0 0 20px rgba(65, 234, 212, 0.2);
     --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --backdrop: blur(20px) saturate(150%);
+    
+    /* Font scaling - default 1x (Medium) */
+    --font-scale: 1;
   }
+
+  /* Font Size Scaling Classes - Simplified (3 Levels) */
+  body.font-small { --font-scale: 0.75; }  /* Much Smaller */
+  body.font-medium { --font-scale: 1; }     /* Normal */
+  body.font-large { --font-scale: 1.35; }   /* Much Larger */
+  
+  /* Apply scaling to root font size */
+  html { font-size: calc(16px * var(--font-scale)); }
 
   /* Thin subtle scrollbars */
   ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -232,13 +245,18 @@ export default function GraminSaathiOS() {
   const [user, setUser] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem('app_theme') || 'blue');
   const [lang, setLang] = useState('en');
-  const [fontSize, setFontSize] = useState('normal'); 
+  const [fontSize, setFontSize] = useState(() => localStorage.getItem('app_fontSize') ||'medium'); 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [sidebarOpen, setSidebarOpen] = useState(false); 
   const [showAuth, setShowAuth] = useState(false); 
   const [routeLoading, setRouteLoading] = useState(false); 
   const [loadProgress, setLoadProgress] = useState(0); 
   const [utilitiesOpen, setUtilitiesOpen] = useState(false);
+
+  // Tour State
+  const [showTour, setShowTour] = useState(false);
+  const [tourSteps, setTourSteps] = useState([]);
+  const [tourKey, setTourKey] = useState(0); // Used to reset tour
 
   // Navigation State
   const getInitialView = () => {
@@ -255,11 +273,16 @@ export default function GraminSaathiOS() {
   const [loading, setLoading] = useState(true);
 
   // Apply theme to body
+  // Apply theme and font size to body
   useEffect(() => {
     document.body.classList.remove('theme-blue', 'theme-dark', 'theme-light');
     if (theme !== 'blue') document.body.classList.add(`theme-${theme}`);
     localStorage.setItem('app_theme', theme);
-  }, [theme]);
+    
+    document.body.classList.remove('font-small', 'font-medium', 'font-large');
+    document.body.classList.add(`font-${fontSize}`);
+    localStorage.setItem('app_fontSize', fontSize);
+  }, [theme, fontSize]);
 
   // Initialize Auth
   useEffect(() => {
@@ -298,6 +321,14 @@ export default function GraminSaathiOS() {
       window.removeEventListener('offline', () => setIsOnline(false));
     };
   }, []);
+
+  // Auto-show guided tour on first visit
+  useEffect(() => {
+    if (user && currentView !== 'landing' && currentView !== 'onboarding' && !hasCompletedTour('dashboard')) {
+      setTourSteps(getTourSteps(lang));
+      setTimeout(() => setShowTour(true), 1000); // Small delay to let UI render
+    }
+  }, [user, lang, currentView]);
 
   // Sync currentView with URL
   useEffect(() => {
@@ -388,8 +419,19 @@ export default function GraminSaathiOS() {
     setTheme(prev => prev === 'blue' ? 'light' : prev === 'light' ? 'dark' : 'blue');
   };
 
+  const cycleFontSize = () => {
+    setFontSize(prev => {
+      switch (prev) {
+        case 'small': return 'medium';
+        case 'medium': return 'large';
+        case 'large': return 'small';
+        default: return 'medium';
+      }
+    });
+  };
+
   const t = (key) => TRANSLATIONS[lang]?.[key] || key;
-  const fontSizeClass = fontSize === 'large' ? 'text-lg' : fontSize === 'xlarge' ? 'text-xl' : 'text-base';
+  const fontSizeClass = fontSize === 'large' ? 'text-lg' : 'text-base';
 
   if (loading) return (
     <div className="flex items-center justify-center h-screen bg-[#011627] text-[#41ead4]">
@@ -496,7 +538,7 @@ export default function GraminSaathiOS() {
         <>
           {sidebarOpen && <div className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={() => setSidebarOpen(false)} />}
           
-          <aside className={`flex flex-col glass fixed left-0 top-0 bottom-0 z-50 transition-all duration-300 ${sidebarOpen ? 'w-80 translate-x-0' : 'w-0 -translate-x-full'} md:relative md:w-72 md:translate-x-0 md:m-4 md:rounded-3xl md:h-[calc(100vh-2rem)] overflow-hidden`}>
+          <aside data-tour="sidebar" className={`flex flex-col glass fixed left-0 top-0 bottom-0 z-50 transition-all duration-300 ${sidebarOpen ? 'w-80 translate-x-0' : 'w-0 -translate-x-full'} md:relative md:w-72 md:translate-x-0 md:m-4 md:rounded-3xl md:h-[calc(100vh-2rem)] overflow-hidden`}>
             <div className="p-6 flex items-center gap-3 border-b border-[var(--border)] cursor-pointer shrink-0">
               <img onClick={() => { setCurrentView('landing'); window.history.pushState(null, '', '/'); }} src="/favicon.svg" alt="Logo" className="w-10 h-10 rounded-xl" />
               <h1 onClick={() => { setCurrentView('landing'); window.history.pushState(null, '', '/'); }} className="flex-1 font-bold text-xl text-[var(--text-main)]">Gramin <span className="text-[var(--primary)]">Saathi</span></h1>
@@ -507,9 +549,9 @@ export default function GraminSaathiOS() {
             </div>
             
             <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-2 min-h-0">
-              <NavItem active={currentView === 'dashboard'} onClick={() => handleViewChange('dashboard')} icon={Home} label={t('nav_home')} />
-              <NavItem active={currentView === 'khata'} onClick={() => handleViewChange('khata')} icon={Wallet} label={t('nav_khata')} />
-              <NavItem active={currentView === 'saathi'} onClick={() => handleViewChange('saathi')} icon={Sprout} label={t('nav_saathi')} />
+              <NavItem data-tour="nav-dashboard" active={currentView === 'dashboard'} onClick={() => handleViewChange('dashboard')} icon={Home} label={t('nav_home')} />
+              <NavItem data-tour="nav-khata" active={currentView === 'khata'} onClick={() => handleViewChange('khata')} icon={Wallet} label={t('nav_khata')} />
+              <NavItem data-tour="saathi" active={currentView === 'saathi'} onClick={() => handleViewChange('saathi')} icon={Sprout} label={t('nav_saathi')} />
               
               {/* Utilities Dropdown */}
               <div className="space-y-1">
@@ -528,17 +570,16 @@ export default function GraminSaathiOS() {
                 
                 {utilitiesOpen && (
                   <div className="ml-4 pl-4 border-l-2 border-[var(--border)] space-y-1">
-                    <NavItem active={currentView === 'mandi'} onClick={() => handleViewChange('mandi')} icon={Store} label={lang === 'en' ? 'Mandi' : 'मंडी'} />
+                    <NavItem data-tour="mandi" active={currentView === 'mandi'} onClick={() => handleViewChange('mandi')} icon={Store} label={lang === 'en' ? 'Mandi' : 'मंडी'} />
                     <NavItem active={currentView === 'mausam'} onClick={() => handleViewChange('mausam')} icon={Cloud} label={lang === 'en' ? 'Weather' : 'मौसम'} />
                     <NavItem active={currentView === 'calculator'} onClick={() => handleViewChange('calculator')} icon={Calculator} label={lang === 'en' ? 'Calculator' : 'कैलकुलेटर'} />
                     <NavItem active={currentView === 'translator'} onClick={() => handleViewChange('translator')} icon={ArrowLeftRight} label={lang === 'en' ? 'Translator' : 'अनुवादक'} />
                   </div>
                 )}
               </div>
-              <NavItem active={currentView === 'yojana'} onClick={() => handleViewChange('yojana')} icon={ShieldCheck} label={t('nav_yojana')} />
-              <NavItem active={currentView === 'community'} onClick={() => handleViewChange('community')} icon={MessageCircle} label={lang === 'en' ? 'Community' : 'समुदाय'} />
-              <NavItem active={currentView === 'seekho'} onClick={() => handleViewChange('seekho')} icon={BookOpen} label={t('nav_seekho')} />
-              <NavItem active={currentView === 'analytics'} onClick={() => handleViewChange('analytics')} icon={TrendingUp} label={lang === 'en' ? 'Analytics' : 'विश्लेषण'} />
+              <NavItem data-tour="nav-yojana" active={currentView === 'yojana'} onClick={() => handleViewChange('yojana')} icon={ShieldCheck} label={t('nav_yojana')} />
+              <NavItem data-tour="nav-community" active={currentView === 'community'} onClick={() => handleViewChange('community')} icon={MessageCircle} label={lang === 'en' ? 'Community' : 'समुदाय'} />
+              <NavItem data-tour="nav-seekho" active={currentView === 'seekho'} onClick={() => handleViewChange('seekho')} icon={BookOpen} label={t('nav_seekho')} />
               <NavItem active={currentView === 'yield-predictor'} onClick={() => handleViewChange('yield-predictor')} icon={Sprout} label={lang === 'en' ? 'Yield Predictor' : 'उपज भविष्यवक्ता'} />
               
               {/* NEW AI Advisors */}
@@ -552,11 +593,15 @@ export default function GraminSaathiOS() {
 
             <div className="p-4 border-t border-[var(--border)] space-y-3 bg-[var(--bg-card)] shrink-0">
               <IdentityMiniCard profile={profile} onClick={() => handleViewChange('profile')} t={t} />
-              <div className="flex gap-2">
-                  <button onClick={toggleLang} className="flex-1 p-2 rounded-xl bg-[var(--bg-input)] text-[var(--text-main)] text-xs font-bold border border-[var(--border)]">{lang === 'en' ? 'EN' : 'हिं'}</button>
-                  <button onClick={cycleTheme} className="flex-1 p-2 rounded-xl bg-[var(--bg-input)] text-[var(--text-main)] border border-[var(--border)] flex items-center justify-center gap-2 text-xs font-medium">
-                    {theme === 'blue' ? <><Droplet size={14} /> Ocean</> : theme === 'light' ? <><Sun size={14} /> Light</> : <><Moon size={14} /> Dark</>}
+              <div className="grid grid-cols-3 gap-2">
+                  <button data-tour="language" onClick={toggleLang} className="p-2 rounded-xl bg-[var(--bg-input)] text-[var(--text-main)] text-xs font-bold border border-[var(--border)]">{lang === 'en' ? 'EN' : 'हिं'}</button>
+                  <button data-tour="theme" onClick={cycleTheme} className="p-2 rounded-xl bg-[var(--bg-input)] text-[var(--text-main)] border border-[var(--border)] flex items-center justify-center gap-1 text-xs font-medium">
+                    {theme === 'blue' ? <><Droplet size={14} /></> : theme === 'light' ? <><Sun size={14} /></> : <><Moon size={14} /></>}
                   </button>
+                  {/* <button data-tour="font-size" onClick={cycleFontSize} className="p-2 rounded-xl bg-[var(--bg-input)] text-[var(--text-main)] border border-[var(--border)] flex items-center justify-center gap-1 text-xs font-bold font-serif">
+                    {fontSize === 'small' ? 'T-' : fontSize === 'medium' ? 'T' : 'T+'}
+                  </button> */}
+                  <TourButton onClick={() => { setTourSteps(getTourSteps(lang)); setTourKey(prev => prev + 1); setShowTour(true); }} lang={lang} />
               </div>
             </div>
           </aside>
@@ -565,7 +610,10 @@ export default function GraminSaathiOS() {
             <header className="md:hidden h-16 glass flex items-center justify-between px-4 shrink-0">
                <button onClick={() => setSidebarOpen(true)} className="p-2"><Menu size={20} /></button>
                <div className="flex items-center gap-2"><img src="/favicon.svg" alt="Logo" className="w-8 h-8" /><span className="font-bold">{t('app_name')}</span></div>
-               <button onClick={toggleLang} className="text-xs font-bold uppercase bg-[var(--bg-input)] px-2 py-1 rounded-lg">{lang}</button>
+               <div className="flex items-center gap-2">
+                 <TourButton onClick={() => { setTourSteps(getTourSteps(lang)); setShowTour(true); }} lang={lang} />
+                 <button onClick={toggleLang} className="text-xs font-bold uppercase bg-[var(--bg-input)] px-2 py-1 rounded-lg">{lang}</button>
+               </div>
             </header>
 
             <div className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -584,7 +632,7 @@ export default function GraminSaathiOS() {
                {currentView === 'scheme-advisor' && <SchemeEligibilityAdvisor lang={lang} t={t} />}
                {currentView === 'insurance-advisor' && <InsuranceAdvisor lang={lang} t={t} />}
                {currentView === 'loan-recommender' && <LoanRecommender lang={lang} t={t} />}
-               {currentView === 'profile' && <ProfileView user={user} profile={profile} db={db} appId={appId} t={t} loadProfile={loadProfile} lang={lang} fontSize={fontSize} setFontSize={setFontSize} />}
+               {currentView === 'profile' && <ProfileView user={user} profile={profile} db={db} appId={appId} t={t} loadProfile={loadProfile} lang={lang} fontSize={fontSize} changeFontSize={setFontSize} />}
             </div>
           </main>
           
@@ -594,6 +642,23 @@ export default function GraminSaathiOS() {
             lang={lang}
             currentView={currentView}
           />
+          
+          {/* Guided Tour */}
+          {showTour && tourSteps.length > 0 && (
+            <GuidedTour
+              key={tourKey}
+              steps={tourSteps}
+              onComplete={() => {
+                markTourCompleted('dashboard');
+                setShowTour(false);
+              }}
+              onSkip={() => {
+                // Don't mark as completed if skipped - tour will show again on next visit
+                setShowTour(false);
+              }}
+              lang={lang}
+            />
+          )}
         </>
       )}
     </div>

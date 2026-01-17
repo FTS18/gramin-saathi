@@ -1,9 +1,11 @@
 import React from 'react';
 
-export function NavItem({ active, onClick, icon: Icon, label }: { active: boolean, onClick: () => void, icon: any, label: string }) {
+export function NavItem({ active, onClick, icon: Icon, label, 'data-tour': dataTour }: 
+  { active: boolean, onClick: () => void, icon: any, label: string, 'data-tour'?: string }) {
   return (
     <button
       onClick={onClick}
+      data-tour={dataTour}
       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group ${
         active 
           ? 'bg-[var(--primary)] text-white shadow-lg shadow-emerald-500/20' 

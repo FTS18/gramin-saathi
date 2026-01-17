@@ -169,8 +169,15 @@ export function AuthView({ onLogin, t, lang, toggleLang }: { onLogin: () => void
         )}
 
         {resetSent && (
-          <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-xl text-green-200 text-sm text-center">
-            {t('reset_sent')}
+          <div className="mb-4 p-4 bg-green-500/20 border border-green-500/50 rounded-xl text-green-200 text-sm">
+            <p className="font-bold mb-1">
+              {lang === 'en' ? '✓ Password reset link sent!' : '✓ पासवर्ड रीसेट लिंक भेजा गया!'}
+            </p>
+            <p className="text-xs opacity-90">
+              {lang === 'en' 
+                ? 'Check your email inbox. If you don\'t see it, please check your spam/junk folder.' 
+                : 'अपना ईमेल इनबॉक्स जांचें। अगर नहीं मिले तो स्पैम/जंक फोल्डर देखें।'}
+            </p>
           </div>
         )}
 
