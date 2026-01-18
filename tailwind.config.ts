@@ -96,6 +96,7 @@ export default {
   		},
   		fontFamily: {
   			sans: [
+				'Space Grotesk',
   				'Roboto',
   				'ui-sans-serif',
   				'system-ui',
